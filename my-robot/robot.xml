@@ -15,6 +15,39 @@
       </default>
     </default>
   </default>
+  <!-- Additional tendons.xml -->
+  <tendon>
+    <fixed name="right_finger_tendon">
+      <joint joint="right-body-link1" coef="1.0"/>
+      <joint joint="right-link1-joint" coef="1.0"/>
+      <joint joint="right-joint-joint" coef="1.0"/>
+      <joint joint="right-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="front_finger_tendon">
+      <joint joint="front-body-link1" coef="1.0"/>
+      <joint joint="front-link1-joint" coef="1.0"/>
+      <joint joint="front-joint-joint" coef="1.0"/>
+      <joint joint="front-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="left_finger_tendon">
+      <joint joint="left-body-link1" coef="1.0"/>
+      <joint joint="left-link1-joint" coef="1.0"/>
+      <joint joint="left-joint-joint" coef="1.0"/>
+      <joint joint="left-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="back_finger_tendon">
+      <joint joint="back-body-link1" coef="1.0"/>
+      <joint joint="back-link1-joint" coef="1.0"/>
+      <joint joint="back-joint-joint" coef="1.0"/>
+      <joint joint="back-joint-link2" coef="1.0"/>
+    </fixed>
+  </tendon>
+  <actuator>
+    <motor name="right_finger_motor" tendon="right_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="front_finger_motor" tendon="front_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="left_finger_motor" tendon="left_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="back_finger_motor" tendon="back_finger_tendon" gear="1" ctrlrange="-1 1"/>
+  </actuator>
   <worldbody>
     <!-- Link 1_moter_based -->
     <body name="1_moter_based" pos="0 0 0" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
@@ -170,34 +203,17 @@
     </body>
   </worldbody>
   <asset>
-    <mesh file="1_moter_based.stl"/>
-    <mesh file="part_1__4.stl"/>
     <mesh file="part_1__3.stl"/>
     <mesh file="part_1__2.stl"/>
+    <mesh file="1_moter_based.stl"/>
     <mesh file="part_1.stl"/>
+    <mesh file="part_1__4.stl"/>
     <material name="1_moter_based_material" rgba="0.615686 0.811765 0.929412 1"/>
     <material name="part_1_material" rgba="0.615686 0.811765 0.929412 1"/>
     <material name="part_1__2_material" rgba="0.615686 0.811765 0.929412 1"/>
     <material name="part_1__3_material" rgba="0.615686 0.811765 0.929412 1"/>
     <material name="part_1__4_material" rgba="0.980392 0.713725 0.00392157 1"/>
   </asset>
-  <actuator>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="right-body-link1" joint="right-body-link1" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="right-link1-joint" joint="right-link1-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="right-joint-joint" joint="right-joint-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="right-joint-link2" joint="right-joint-link2" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="front-body-link1" joint="front-body-link1" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="front-link1-joint" joint="front-link1-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="front-joint-joint" joint="front-joint-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="front-joint-link2" joint="front-joint-link2" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="left-body-link1" joint="left-body-link1" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="left-link1-joint" joint="left-link1-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="left-joint-joint" joint="left-joint-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="left-joint-link2" joint="left-joint-link2" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="back-body-link1" joint="back-body-link1" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="back-link1-joint" joint="back-link1-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="back-joint-joint" joint="back-joint-joint" inheritrange="1"/>
-    <position class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot" name="back-joint-link2" joint="back-joint-link2" inheritrange="1"/>
-  </actuator>
+  <actuator/>
   <equality/>
 </mujoco>

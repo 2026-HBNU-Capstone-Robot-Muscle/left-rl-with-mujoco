@@ -1,0 +1,33 @@
+<tendon>
+    <fixed name="right_finger_tendon">
+        <joint joint="right-body-link1" coef="1.0"/>
+        <joint joint="right-link1-joint" coef="1.0"/>
+        <joint joint="right-joint-joint" coef="1.0"/>
+        <joint joint="right-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="front_finger_tendon">
+        <joint joint="front-body-link1" coef="1.0"/>
+        <joint joint="front-link1-joint" coef="1.0"/>
+        <joint joint="front-joint-joint" coef="1.0"/>
+        <joint joint="front-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="left_finger_tendon">
+        <joint joint="left-body-link1" coef="1.0"/>
+        <joint joint="left-link1-joint" coef="1.0"/>
+        <joint joint="left-joint-joint" coef="1.0"/>
+        <joint joint="left-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="back_finger_tendon">
+        <joint joint="back-body-link1" coef="1.0"/>
+        <joint joint="back-link1-joint" coef="1.0"/>
+        <joint joint="back-joint-joint" coef="1.0"/>
+        <joint joint="back-joint-link2" coef="1.0"/>
+    </fixed>
+</tendon>
+
+<actuator>
+    <motor name="right_finger_motor" tendon="right_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="front_finger_motor" tendon="front_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="left_finger_motor" tendon="left_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <motor name="back_finger_motor" tendon="back_finger_tendon" gear="1" ctrlrange="-1 1"/>
+</actuator>
