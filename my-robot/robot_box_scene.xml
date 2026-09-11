@@ -1,0 +1,53 @@
+<mujoco model="robot_box_scene">
+    <include file="robot.xml"/>
+    <include file="reorientation_cube.xml"/>
+
+    <statistic center="0 0 0.03" extent="0.4" meansize="0.01"/>
+
+    <visual>
+        <headlight diffuse=".8 .8 .8" ambient=".2 .2 .2" specular="1 1 1"/>
+        <global azimuth="120" elevation="-20"/>
+    </visual>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="1 1 1" rgb2="1 1 1" width="800" height="800"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="1 1 1" rgb2="1 1 1" markrgb="0 0 0"
+          width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0"/>
+    </asset>
+
+    <worldbody>
+        <site name="world" pos="0 0 0" size="0.001"/>
+        <camera name="side" pos="0.4 -0.4 0.2" xyaxes="0.7 0.7 0 -0.2 0.2 0.95"/>
+        <camera name="top" pos="0 0 0.35" xyaxes="1 0 0 0 1 0"/>
+        <geom name="ground" type="plane" friction="1.5 0.005 0.001" size="5.5 5.5 0.1" rgba=".9 .9 .9 1.0" material="groundplane" pos="0 0 -0.3"/>
+    </worldbody>
+
+    <option gravity="0 0 -9.81"/>
+
+    <sensor>
+        <framepos name="cube_position" objtype="site" objname="cube_center" reftype="site" refname="world"/>
+        <framequat name="cube_orientation" objtype="xbody" objname="cube" reftype="site" refname="world"/>
+        <framelinvel name="cube_linvel" objtype="xbody" objname="cube" reftype="site" refname="world"/>
+        <frameangvel name="cube_angvel" objtype="xbody" objname="cube" reftype="site" refname="world"/>
+        <gyro name="cube_self_rotation" site="cube_center"/>
+
+        <framepos name="tip1_position" objtype="site" objname="tip" reftype="site" refname="world"/>
+        <framepos name="tip2_position" objtype="site" objname="tip_2" reftype="site" refname="world"/>
+        <framepos name="tip3_position" objtype="site" objname="tip_3" reftype="site" refname="world"/>
+        <framepos name="tip4_position" objtype="site" objname="tip_4" reftype="site" refname="world"/>
+    </sensor>
+
+    <keyframe>
+        <key name="home"
+          qpos="
+            0.1 0.05 0.05 0.05
+            0.1 0.05 0.05 0.05
+            0.1 0.05 0.05 0.05
+            0.1 0.05 0.05 0.05
+            0 0
+          "
+          ctrl="0.3 0.3 0.3 0.3"
+        />
+    </keyframe>
+</mujoco>
