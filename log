@@ -1,0 +1,67 @@
+보상값 로그
+
+total_reward = reward_reach + reward_grasp + reward_contact - penalty_rolloff - 0.1
+
+Reach : 접근 보상
+proximity_delta = (이전 스텝 손끝-큐브 거리 합 - 이번 스텝 거리 합) * 100
+reward_reach = clip(proximity_delta, -2.0, 5.0) * 5.0
+
+Grasp : 그립/정지-접촉 보상
+is_close = clip((0.025 - 손끝-큐브최소거리) / 0.025, 0, 1)
+is_slow = exp(-5 * 평균 관절속도)
+reward_grasp = is_close * is_slow * 20.0
+min_tip_dist가 0.025보다 작아야만 값이 생기는데 큐브 한 변의 절반이 0.028이기에 현재 0인 상태 값이 생긴 경우는 순간적인 힘으로 큐브 내부로 잠깐 들어간 경우
+
+Ctct : 접촉/변위 보상
+큐브 변위 = 초기위치 대비 이동거리
+0.005m 미만 이동: 0점
+0.005~0.03m 이동: 5.0점 (스텝당)
+0.03m 초과: 거리에 비례해 감소
+
+Rolloff : 이탈 페널티
+cube_lateral = jp.linalg.norm(cube_pos[:2] - self.hand_center[:2])  # 중심으로부터 수평 거리
+penalty_rolloff = jp.maximum(cube_lateral - 0.09, 0.0) * 50.0
+
+tip : min_tip_dist_per_step  (미터 단위, 에피소드 평균), 손끝이 큐브에 얼마나 가까이 붙었는지 참고 지표
+0.055 근처가 임계값이라 큰 폭으로 변화 x
+
+S   3932160 | R  947.79 | Reach +208.56 | Grasp  0.00 | Ctct 769.24 | Rolloff  0.01 | tip 0.074
+S   4587520 | R 1020.67 | Reach +207.89 | Grasp  0.00 | Ctct 843.77 | Rolloff  0.99 | tip 0.072
+S   5242880 | R 1122.23 | Reach +211.39 | Grasp  0.00 | Ctct 941.45 | Rolloff  0.61 | tip 0.070
+S   5898240 | R 1144.13 | Reach +212.67 | Grasp  0.00 | Ctct 961.47 | Rolloff  0.01 | tip 0.069
+S   6553600 | R 1142.99 | Reach +210.54 | Grasp  0.00 | Ctct 962.53 | Rolloff  0.08 | tip 0.069
+S   7208960 | R 1140.91 | Reach +211.22 | Grasp  0.00 | Ctct 959.69 | Rolloff  0.00 | tip 0.068
+S   7864320 | R 1100.25 | Reach +209.49 | Grasp  0.00 | Ctct 920.76 | Rolloff  0.00 | tip 0.069
+S   8519680 | R 1149.29 | Reach +209.33 | Grasp  0.00 | Ctct 971.65 | Rolloff  1.69 | tip 0.068
+S   9175040 | R 1211.16 | Reach +214.25 | Grasp  0.00 | Ctct 1026.91 | Rolloff  0.00 | tip 0.067
+S   9830400 | R 1215.37 | Reach +219.23 | Grasp  0.00 | Ctct 1026.14 | Rolloff  0.00 | tip 0.066
+S  10485760 | R 1270.46 | Reach +230.52 | Grasp  0.00 | Ctct 1069.94 | Rolloff  0.00 | tip 0.065
+S  11141120 | R 1299.64 | Reach +245.30 | Grasp  0.00 | Ctct 1084.34 | Rolloff  0.00 | tip 0.064
+S  11796480 | R 1328.93 | Reach +257.75 | Grasp  0.00 | Ctct 1101.19 | Rolloff  0.00 | tip 0.063
+S  12451840 | R 1340.95 | Reach +272.86 | Grasp  0.00 | Ctct 1098.08 | Rolloff  0.00 | tip 0.062
+S  13107200 | R 1354.97 | Reach +281.49 | Grasp  0.00 | Ctct 1103.48 | Rolloff  0.00 | tip 0.061
+S  13762560 | R 1368.61 | Reach +284.50 | Grasp  0.00 | Ctct 1114.11 | Rolloff  0.00 | tip 0.060
+S  14417920 | R 1372.74 | Reach +285.56 | Grasp  0.00 | Ctct 1117.18 | Rolloff  0.00 | tip 0.059
+S  15073280 | R 1383.91 | Reach +285.60 | Grasp  0.00 | Ctct 1128.31 | Rolloff  0.00 | tip 0.059
+S  15728640 | R 1399.84 | Reach +286.77 | Grasp  0.00 | Ctct 1143.07 | Rolloff  0.00 | tip 0.058
+S  16384000 | R 1395.14 | Reach +287.31 | Grasp  0.00 | Ctct 1137.83 | Rolloff  0.00 | tip 0.057
+S  17039360 | R 1414.63 | Reach +287.58 | Grasp  0.00 | Ctct 1157.06 | Rolloff  0.00 | tip 0.057
+S  17694720 | R 1423.83 | Reach +287.62 | Grasp  0.00 | Ctct 1166.22 | Rolloff  0.00 | tip 0.056
+S  18350080 | R 1430.88 | Reach +287.69 | Grasp  0.00 | Ctct 1173.18 | Rolloff  0.00 | tip 0.056
+S  19005440 | R 1433.32 | Reach +288.35 | Grasp  0.00 | Ctct 1174.97 | Rolloff  0.00 | tip 0.056
+S  19660800 | R 1437.66 | Reach +288.60 | Grasp  0.00 | Ctct 1179.06 | Rolloff  0.00 | tip 0.056
+S  20316160 | R 1442.20 | Reach +288.75 | Grasp  0.00 | Ctct 1183.45 | Rolloff  0.00 | tip 0.055
+S  20971520 | R 1444.19 | Reach +289.05 | Grasp  0.00 | Ctct 1185.13 | Rolloff  0.00 | tip 0.055
+S  21626880 | R 1444.30 | Reach +289.06 | Grasp  0.00 | Ctct 1185.24 | Rolloff  0.00 | tip 0.055
+S  22282240 | R 1445.20 | Reach +289.19 | Grasp  0.00 | Ctct 1186.01 | Rolloff  0.00 | tip 0.055
+S  22937600 | R 1447.08 | Reach +289.26 | Grasp  0.00 | Ctct 1187.81 | Rolloff  0.00 | tip 0.055
+S  23592960 | R 1447.11 | Reach +289.40 | Grasp  0.00 | Ctct 1187.70 | Rolloff  0.00 | tip 0.055
+S  24248320 | R 1449.87 | Reach +289.44 | Grasp  0.01 | Ctct 1190.43 | Rolloff  0.00 | tip 0.055
+S  24903680 | R 1450.59 | Reach +289.56 | Grasp  0.01 | Ctct 1191.02 | Rolloff  0.00 | tip 0.054
+S  25559040 | R 1451.58 | Reach +289.65 | Grasp  0.01 | Ctct 1191.91 | Rolloff  0.00 | tip 0.054
+S  26214400 | R 1452.30 | Reach +289.66 | Grasp  0.02 | Ctct 1192.62 | Rolloff  0.00 | tip 0.054
+S  26869760 | R 1453.11 | Reach +289.76 | Grasp  0.02 | Ctct 1193.34 | Rolloff  0.00 | tip 0.054
+S  27525120 | R 1452.12 | Reach +289.67 | Grasp  0.02 | Ctct 1192.43 | Rolloff  0.00 | tip 0.054
+S  30801920 | R 1452.71 | Reach +289.83 | Grasp  0.03 | Ctct 1192.85 | Rolloff  0.00 | tip 0.054
+S  31457280 | R 1452.68 | Reach +289.93 | Grasp  0.03 | Ctct 1192.72 | Rolloff  0.00 | tip 0.054
+S  32112640 | R 1454.97 | Reach +289.80 | Grasp  0.03 | Ctct 1195.14 | Rolloff  0.00 | tip 0.054
