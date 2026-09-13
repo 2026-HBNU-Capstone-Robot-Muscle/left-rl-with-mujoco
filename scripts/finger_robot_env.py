@@ -35,7 +35,7 @@ class FingerRobotEnv(gym.Env):
         self.model = mujoco.MjModel.from_xml_path(str(self.model_path))
         self.data = mujoco.MjData(self.model)
 
-        self.max_steps = 500
+        self.max_steps = 5000
         self.step_count = 0
         self.viewer = None
 
