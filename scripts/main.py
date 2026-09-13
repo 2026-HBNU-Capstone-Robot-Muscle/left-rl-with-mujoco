@@ -26,5 +26,7 @@ def main(argv: list[str] | None = None) -> None:
     train(args)
 
 
+# GUI를 사용하여 학습 과정 확인하는 방법
+# python scripts/main.py --render-training --timesteps 100000
 if __name__ == "__main__":
     main()
