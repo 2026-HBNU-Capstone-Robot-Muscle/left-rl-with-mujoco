@@ -35,7 +35,7 @@ class FingerRobotEnv(gym.Env):
         self.model = mujoco.MjModel.from_xml_path(str(self.model_path))
         self.data = mujoco.MjData(self.model)
 
-        self.max_steps = 500
+        self.max_steps = 5000
         self.step_count = 0
         self.viewer = None
 
@@ -90,7 +90,7 @@ class FingerRobotEnv(gym.Env):
         previous_progress = self._finger_progress()
 
         self.data.ctrl[:] = np.clip(action, self.action_space.low, self.action_space.high)
-        mujoco.mj_step(self.model, self.data, nstep=5)
+        mujoco.mj_step(self.model, self.data, nstep=1)
         self.step_count += 1
 
         progress = self._finger_progress()
