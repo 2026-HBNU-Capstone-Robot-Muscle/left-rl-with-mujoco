@@ -14,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--model-file", type=Path, default=DEFAULT_LOG_DIR / "finger_robot_ppo")
-    parser.add_argument("--eval-steps", type=int, default=2_000)
+    parser.add_argument("--eval-steps", type=int, default=10_000)
     parser.add_argument("--device", default="auto")
     return parser
 
