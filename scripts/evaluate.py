@@ -13,15 +13,33 @@ from finger_robot_env import DEFAULT_LOG_DIR, DEFAULT_MODEL, make_env
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
-    parser.add_argument("--model-file", type=Path, default=DEFAULT_LOG_DIR / "finger_robot_ppo")
-    parser.add_argument("--eval-steps", type=int, default=10_000)
+    parser.add_argument("--log-dir", type=Path, default=DEFAULT_LOG_DIR)
+    parser.add_argument(
+        "--model-kind",
+        choices=("best", "final"),
+        default="best",
+        help="Which trained model to load: best or final. Default: best.",
+    )
+    parser.add_argument(
+        "--model-file",
+        type=Path,
+        default=None,
+        help="Optional explicit path to a trained model zip file. If omitted, uses <log-dir>/finger_robot_ppo_<model-kind>.zip.",
+    )
+    parser.add_argument("--eval-steps", type=int, default=6_000)
     parser.add_argument("--device", default="auto")
     return parser
 
 
 def evaluate(args: argparse.Namespace) -> None:
     env = make_env(args.model, render_mode="human")
-    model = PPO.load(args.model_file, env=env, device=args.device)
+
+    if args.model_file is None:
+        model_file = args.log_dir / f"finger_robot_ppo_{args.model_kind}.zip"
+    else:
+        model_file = args.model_file
+
+    model = PPO.load(model_file, env=env, device=args.device)
 
     observation, _ = env.reset()
     for _ in range(args.eval_steps):
