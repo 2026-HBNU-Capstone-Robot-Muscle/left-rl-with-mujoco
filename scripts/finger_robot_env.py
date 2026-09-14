@@ -11,6 +11,8 @@ import numpy as np
 from gymnasium import spaces
 from stable_baselines3.common.monitor import Monitor
 
+from reward_function import RewardConfig, RewardState, compute_reward
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL = ROOT / "my-robot" / "scene.xml"
@@ -38,6 +40,9 @@ class FingerRobotEnv(gym.Env):
         self.max_steps = 5000
         self.step_count = 0
         self.viewer = None
+
+        self.reward_cfg = RewardConfig()
+        self.reward_state = RewardState()
 
         self.finger_joint_ids = np.array(
             [self.model.joint(name).id for name in FINGER_JOINT_NAMES],
@@ -75,27 +80,41 @@ class FingerRobotEnv(gym.Env):
         super().reset(seed=seed)
         mujoco.mj_resetData(self.model, self.data)
 
-        if self.model.nq >= 7:
-            self.data.qpos[:7] = np.array([0.0, 0.0, 0.08, 1.0, 0.0, 0.0, 0.0])
+        # robot.xml's base body is welded to the world (no freejoint), so this
+        # only applies if a freejoint actually exists at joint 0 - guard against
+        # it instead of assuming nq >= 7 means "free base", which used to
+        # silently overwrite the first 7 finger-joint angles.
+        if self.model.njnt > 0 and self.model.jnt_type[0] == mujoco.mjtJoint.mjJNT_FREE:
+            base_addr = self.model.jnt_qposadr[0]
+            self.data.qpos[base_addr:base_addr + 7] = np.array(
+                [0.0, 0.0, 0.08, 1.0, 0.0, 0.0, 0.0]
+            )
 
         self.data.qpos[self.finger_qpos_addresses] = self.lower_limits
         self.data.qvel[:] = 0.0
         mujoco.mj_forward(self.model, self.data)
 
         self.step_count = 0
+        self.reward_state = RewardState()
         return self._get_obs(), {"finger_progress": self._finger_progress()}
 
     def step(self, action: np.ndarray):
         action = np.asarray(action, dtype=np.float32)
-        previous_progress = self._finger_progress()
 
-        self.data.ctrl[:] = np.clip(action, self.action_space.low, self.action_space.high)
+        clipped_action = np.clip(action, self.action_space.low, self.action_space.high)
+        self.data.ctrl[:] = clipped_action
         mujoco.mj_step(self.model, self.data, nstep=1)
         self.step_count += 1
 
         progress = self._finger_progress()
-        control_cost = 0.01 * float(np.mean(np.square(action)))
-        reward = 10.0 * (progress - previous_progress) - control_cost
+
+        reward, reward_breakdown, self.reward_state = compute_reward(
+            self.model,
+            self.data,
+            clipped_action.astype(np.float64),
+            self.reward_cfg,
+            self.reward_state,
+        )
 
         terminated = bool(progress > 0.98)
         truncated = self.step_count >= self.max_steps
@@ -103,7 +122,8 @@ class FingerRobotEnv(gym.Env):
         if self.render_mode == "human":
             self.render()
 
-        return self._get_obs(), reward, terminated, truncated, {"finger_progress": progress}
+        info = {"finger_progress": progress, "reward_breakdown": reward_breakdown}
+        return self._get_obs(), reward, terminated, truncated, info
 
     def render(self) -> None:
         if self.viewer is None:
