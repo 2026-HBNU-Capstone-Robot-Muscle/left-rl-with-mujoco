@@ -23,6 +23,15 @@ FINGER_JOINT_NAMES = (
     "left-body-link1",
     "back-body-link1",
 )
+# One fixed tendon per real motor. Order matches the actuator order in
+# robot.xml/tendons.xml (and FINGER_MOTORS in reward_function.py), which is
+# what matters for observations/actions to line up correctly.
+FINGER_TENDON_NAMES = (
+    "right_finger_tendon",
+    "front_finger_tendon",
+    "left_finger_tendon",
+    "back_finger_tendon",
+)
 
 
 class FingerRobotEnv(gym.Env):
@@ -55,6 +64,24 @@ class FingerRobotEnv(gym.Env):
         self.lower_limits = self.model.jnt_range[self.finger_joint_ids, 0]
         self.upper_limits = self.model.jnt_range[self.finger_joint_ids, 1]
 
+        # Real hardware only exposes 4 motor encoders (position + velocity),
+        # not all 16 joint angles - the tendon length/velocity is exactly
+        # what a real motor encoder reads (gear=1, so tendon length units
+        # == motor rotation units). Use those as the observation instead of
+        # the full joint-space qpos/qvel.
+        self.tendon_ids = np.array(
+            [
+                mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_TENDON, name)
+                for name in FINGER_TENDON_NAMES
+            ],
+            dtype=np.int32,
+        )
+
+        # Actuators are now position servos (see robot.xml/tendons.xml): the
+        # policy outputs a normalized action in [-1, 1] per motor, which is
+        # rescaled in step() to that motor's physical ctrlrange (target
+        # tendon length == target motor position). This mirrors a real motor
+        # driver, which takes a position setpoint, not a torque/effort.
         self.action_space = spaces.Box(
             low=-1.0,
             high=1.0,
@@ -64,12 +91,17 @@ class FingerRobotEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.model.nq + self.model.nv,),
+            shape=(2 * len(FINGER_TENDON_NAMES),),  # 4 motor positions + 4 motor velocities
             dtype=np.float32,
         )
 
     def _get_obs(self) -> np.ndarray:
-        return np.concatenate((self.data.qpos, self.data.qvel)).astype(np.float32)
+        # Tendon length/velocity == what a real motor encoder would report
+        # (position + velocity of each of the 4 motors), not the full
+        # 16-joint qpos/qvel state.
+        motor_position = self.data.ten_length[self.tendon_ids]
+        motor_velocity = self.data.ten_velocity[self.tendon_ids]
+        return np.concatenate((motor_position, motor_velocity)).astype(np.float32)
 
     def _finger_progress(self) -> float:
         positions = self.data.qpos[self.finger_qpos_addresses]
@@ -102,7 +134,15 @@ class FingerRobotEnv(gym.Env):
         action = np.asarray(action, dtype=np.float32)
 
         clipped_action = np.clip(action, self.action_space.low, self.action_space.high)
-        self.data.ctrl[:] = clipped_action
+
+        # Rescale the normalized [-1, 1] action to each motor's physical
+        # ctrlrange (target tendon length). Actuators are position servos
+        # now, so ctrl is a target position, not a torque.
+        ctrl_low = self.model.actuator_ctrlrange[:, 0]
+        ctrl_high = self.model.actuator_ctrlrange[:, 1]
+        target_position = ctrl_low + (clipped_action + 1.0) * 0.5 * (ctrl_high - ctrl_low)
+
+        self.data.ctrl[:] = target_position
         mujoco.mj_step(self.model, self.data, nstep=1)
         self.step_count += 1
 
@@ -111,7 +151,7 @@ class FingerRobotEnv(gym.Env):
         reward, reward_breakdown, self.reward_state = compute_reward(
             self.model,
             self.data,
-            clipped_action.astype(np.float64),
+            clipped_action.astype(np.float64),  # normalized action; same [-1, 1] semantics reward_function.py expects
             self.reward_cfg,
             self.reward_state,
         )
