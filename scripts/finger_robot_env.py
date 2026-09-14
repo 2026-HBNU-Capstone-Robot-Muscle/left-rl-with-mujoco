@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import time
+
 import gymnasium as gym
 import mujoco
 import mujoco.viewer
@@ -168,7 +170,16 @@ class FingerRobotEnv(gym.Env):
     def render(self) -> None:
         if self.viewer is None:
             self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+            self._last_render_time = time.time()
+
         self.viewer.sync()
+
+        # wall-clock과 sim time을 맞춰서 실시간(1x)으로 재생
+        dt = self.model.opt.timestep
+        elapsed = time.time() - self._last_render_time
+        if elapsed < dt:
+            time.sleep(dt - elapsed)
+        self._last_render_time = time.time()
 
     def close(self) -> None:
         if self.viewer is not None:

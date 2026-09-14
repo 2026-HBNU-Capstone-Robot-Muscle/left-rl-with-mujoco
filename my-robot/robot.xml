@@ -56,7 +56,7 @@
   </tendon>
   <worldbody>
     <!-- Link 1_moter_based -->
-    <body name="1_moter_based" pos="0 0 0.211" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
+    <body name="1_moter_based" pos="0 0 0.1825" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
       <!-- freejoint removed on purpose, matching robot-x.xml: base body is rigidly
            welded to the world. No joint here == the body's pos/quat above are fixed
            for good, it cannot translate or rotate under any actuation or contact force.
