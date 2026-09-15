@@ -50,11 +50,11 @@ SWITCH_THRESHOLD = 0.0
 
 @dataclass
 class RewardWeights:
-    w1: float = 3.0   # R_grip
-    w2: float = 3.0   # R_contact
+    w1: float = 1.0   # R_grip
+    w2: float = 1.0   # R_contact
     w3: float = 0.5   # P_slip
-    w4: float = 0.005  # P_energy
-    w5: float = 1.0   # P_switch
+    w4: float = 0.01  # P_energy
+    w5: float = 0.1   # P_switch
 
 
 @dataclass
