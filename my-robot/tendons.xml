@@ -25,9 +25,14 @@
     </fixed>
 </tendon>
 
+<!-- Position-servo actuators: ctrl is the target tendon length (== target
+     motor rotation, gear=1), matching a real motor driver that only takes
+     a position setpoint. kp/dampratio implement the PD loop a real
+     position servo/driver performs internally. ctrlrange per finger =
+     sum of that finger's joint ranges (tendon coef is 1.0 on each). -->
 <actuator>
-    <motor name="right_finger_motor" tendon="right_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="front_finger_motor" tendon="front_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="left_finger_motor" tendon="left_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="back_finger_motor" tendon="back_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <position name="right_finger_motor" tendon="right_finger_tendon" kp="50" dampratio="1" ctrlrange="-0.0873 2.0071"/>
+    <position name="front_finger_motor" tendon="front_finger_tendon" kp="50" dampratio="1" ctrlrange="0.0 2.0944"/>
+    <position name="left_finger_motor" tendon="left_finger_tendon" kp="50" dampratio="1" ctrlrange="-0.0441 2.0503"/>
+    <position name="back_finger_motor" tendon="back_finger_tendon" kp="50" dampratio="1" ctrlrange="0.0 2.0944"/>
 </actuator>

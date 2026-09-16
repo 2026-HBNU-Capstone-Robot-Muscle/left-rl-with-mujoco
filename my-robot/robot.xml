@@ -3,6 +3,12 @@
 <!-- Onshape https://cad.onshape.com/documents/8e3b798062dc68d62ddd1283/w/f24c7ae362d29fd08e04f814/e/846a14a309426dccc22e67ba -->
 <mujoco model="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <!-- position actuators (kp=50) are numerically unstable with the default
+       Euler integrator at these link masses - verified this diverges to NaN
+       within ~15 steps. implicitfast fixes it and converges exactly to the
+       commanded target (tested standalone). Set here so scene.xml doesn't
+       need to change, since robot.xml is <include>d into it. -->
+  <option integrator="implicitfast"/>
   <default>
     <default class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
       <joint frictionloss="0.1" armature="0.005"/>
@@ -50,7 +56,7 @@
   </tendon>
   <worldbody>
     <!-- Link 1_moter_based -->
-    <body name="1_moter_based" pos="0 0 0.211" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
+    <body name="1_moter_based" pos="0 0 0.181" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
       <!-- freejoint removed on purpose, matching robot-x.xml: base body is rigidly
            welded to the world. No joint here == the body's pos/quat above are fixed
            for good, it cannot translate or rotate under any actuation or contact force.
@@ -221,11 +227,16 @@
     <material name="part_1__3_material" rgba="0.615686 0.811765 0.929412 1"/>
     <material name="part_1__4_material" rgba="0.980392 0.713725 0.00392157 1"/>
   </asset>
+  <!-- Position-servo actuators: ctrl is the target tendon length (== target
+       motor rotation, gear=1), matching a real motor driver that only takes
+       a position setpoint. kp/dampratio implement the PD loop a real
+       position servo/driver performs internally. ctrlrange per finger =
+       sum of that finger's joint ranges (tendon coef is 1.0 on each). -->
   <actuator>
-    <motor name="right_finger_motor" tendon="right_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="front_finger_motor" tendon="front_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="left_finger_motor" tendon="left_finger_tendon" gear="1" ctrlrange="-1 1"/>
-    <motor name="back_finger_motor" tendon="back_finger_tendon" gear="1" ctrlrange="-1 1"/>
+    <position name="right_finger_motor" tendon="right_finger_tendon" kp="50" dampratio="1" ctrlrange="-0.0873 2.0071"/>
+    <position name="front_finger_motor" tendon="front_finger_tendon" kp="50" dampratio="1" ctrlrange="0.0 2.0944"/>
+    <position name="left_finger_motor" tendon="left_finger_tendon" kp="50" dampratio="1" ctrlrange="-0.0441 2.0503"/>
+    <position name="back_finger_motor" tendon="back_finger_tendon" kp="50" dampratio="1" ctrlrange="0.0 2.0944"/>
   </actuator>
   <equality/>
 </mujoco>
