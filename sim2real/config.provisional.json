@@ -1,0 +1,140 @@
+{
+  "port": "COM8",
+  "baud": 1000000,
+  "period_s": 0.1,
+  "max_age_s": 0.1,
+  "mapping_verified": false,
+  "timing_verified": false,
+  "stop_verified": false,
+  "single_motor_tests_verified": false,
+  "watchdog_ticks": null,
+  "smoothing_tau_s": null,
+  "source_commit": "c37fa759a00099b8b8b0a06596f55c95a401be31",
+  "policy": {
+    "sha256": "5b9a3f36b348fa7fcc16370432e9f5ce476091cbee38431686166ffababd426b",
+    "hardware_validated": false
+  },
+  "motors": [
+    {
+      "id": 4,
+      "finger": "right",
+      "mapping_note": "user relative placement; simulation frame pending",
+      "model_number": null,
+      "open2_reference_tick": 2660,
+      "close2_reference_tick": 2303,
+      "calibration": {
+        "verified": false,
+        "evidence": null,
+        "zero_tick": 2598,
+        "tendon_at_zero": -0.0873,
+        "tendon_per_tick": -0.007099661016949152,
+        "status": "user_approved_provisional"
+      },
+      "limits": {
+        "verified": false,
+        "evidence": null,
+        "position_tick": null,
+        "velocity_tick_s": null,
+        "current_ma": null,
+        "temperature_c": null,
+        "step_tick": null,
+        "tracking_error_tick": null,
+        "profile_velocity_raw": null
+      },
+      "initial_position_tick": 2598,
+      "provisional_close_tick": 2303
+    },
+    {
+      "id": 1,
+      "finger": "front",
+      "mapping_note": "user relative placement; simulation frame pending",
+      "model_number": null,
+      "open2_reference_tick": 835,
+      "close2_reference_tick": 386,
+      "calibration": {
+        "verified": false,
+        "evidence": null,
+        "zero_tick": 657,
+        "tendon_at_zero": 0,
+        "tendon_per_tick": -0.0077284132841328405,
+        "status": "user_approved_provisional"
+      },
+      "limits": {
+        "verified": false,
+        "evidence": null,
+        "position_tick": null,
+        "velocity_tick_s": null,
+        "current_ma": null,
+        "temperature_c": null,
+        "step_tick": null,
+        "tracking_error_tick": null,
+        "profile_velocity_raw": null
+      },
+      "initial_position_tick": 657,
+      "provisional_close_tick": 300
+    },
+    {
+      "id": 2,
+      "finger": "left",
+      "mapping_note": "user relative placement; simulation frame pending",
+      "model_number": null,
+      "open2_reference_tick": 2727,
+      "close2_reference_tick": 2372,
+      "calibration": {
+        "verified": false,
+        "evidence": null,
+        "zero_tick": 2696,
+        "tendon_at_zero": -0.0441,
+        "tendon_per_tick": -0.006464197530864197,
+        "status": "user_approved_provisional"
+      },
+      "limits": {
+        "verified": false,
+        "evidence": null,
+        "position_tick": null,
+        "velocity_tick_s": null,
+        "current_ma": null,
+        "temperature_c": null,
+        "step_tick": null,
+        "tracking_error_tick": null,
+        "profile_velocity_raw": null
+      },
+      "initial_position_tick": 2696,
+      "provisional_close_tick": 2372
+    },
+    {
+      "id": 3,
+      "finger": "back",
+      "mapping_note": "inferred remaining motor; confirm",
+      "model_number": null,
+      "open2_reference_tick": 2568,
+      "close2_reference_tick": 2189,
+      "calibration": {
+        "verified": false,
+        "evidence": null,
+        "zero_tick": 2584,
+        "tendon_at_zero": 0,
+        "tendon_per_tick": -0.005302278481012657,
+        "status": "user_approved_provisional"
+      },
+      "limits": {
+        "verified": false,
+        "evidence": null,
+        "position_tick": null,
+        "velocity_tick_s": null,
+        "current_ma": null,
+        "temperature_c": null,
+        "step_tick": null,
+        "tracking_error_tick": null,
+        "profile_velocity_raw": null
+      },
+      "initial_position_tick": 2584,
+      "provisional_close_tick": 2189
+    }
+  ],
+  "read_method": "sync",
+  "initial_pose_file": "initial_pose.json",
+  "initial_pose_note": "User-set resting initial pose; not mechanical limits or verified tendon zero. Previous open2/close2 preserved.",
+  "mapping_status": "user_approved_provisional",
+  "provisional_note": "User approved saved initial pose and old close2 as temporary endpoints; not validated physical tendon coordinates or mechanical limits."
+}
