@@ -1,67 +1,39 @@
-보상값 로그
-
-total_reward = reward_reach + reward_grasp + reward_contact - penalty_rolloff - 0.1
-
-Reach : 접근 보상
-proximity_delta = (이전 스텝 손끝-큐브 거리 합 - 이번 스텝 거리 합) * 100
-reward_reach = clip(proximity_delta, -2.0, 5.0) * 5.0
-
-Grasp : 그립/정지-접촉 보상
-is_close = clip((0.025 - 손끝-큐브최소거리) / 0.025, 0, 1)
-is_slow = exp(-5 * 평균 관절속도)
-reward_grasp = is_close * is_slow * 20.0
-min_tip_dist가 0.025보다 작아야만 값이 생기는데 큐브 한 변의 절반이 0.028이기에 현재 0인 상태 값이 생긴 경우는 손가락이 큐브 내부로 들어간 경우
-
-Ctct : 접촉/변위 보상
-큐브 변위 = 초기위치 대비 이동거리
-0.005m 미만 이동: 0점
-0.005~0.03m 이동: 5.0점 (스텝당)
-0.03m 초과: 거리에 비례해 감소
-
-Rolloff : 이탈 페널티
-cube_lateral = jp.linalg.norm(cube_pos[:2] - self.hand_center[:2])  # 중심으로부터 수평 거리
-penalty_rolloff = jp.maximum(cube_lateral - 0.09, 0.0) * 50.0
-
-tip : min_tip_dist_per_step  (미터 단위, 에피소드 평균), 손끝이 큐브에 얼마나 가까이 붙었는지 참고 지표
-0.055 근처가 임계값이라 큰 폭으로 변화 x
-
-S   3932160 | R  947.79 | Reach +208.56 | Grasp  0.00 | Ctct 769.24 | Rolloff  0.01 | tip 0.074
-S   4587520 | R 1020.67 | Reach +207.89 | Grasp  0.00 | Ctct 843.77 | Rolloff  0.99 | tip 0.072
-S   5242880 | R 1122.23 | Reach +211.39 | Grasp  0.00 | Ctct 941.45 | Rolloff  0.61 | tip 0.070
-S   5898240 | R 1144.13 | Reach +212.67 | Grasp  0.00 | Ctct 961.47 | Rolloff  0.01 | tip 0.069
-S   6553600 | R 1142.99 | Reach +210.54 | Grasp  0.00 | Ctct 962.53 | Rolloff  0.08 | tip 0.069
-S   7208960 | R 1140.91 | Reach +211.22 | Grasp  0.00 | Ctct 959.69 | Rolloff  0.00 | tip 0.068
-S   7864320 | R 1100.25 | Reach +209.49 | Grasp  0.00 | Ctct 920.76 | Rolloff  0.00 | tip 0.069
-S   8519680 | R 1149.29 | Reach +209.33 | Grasp  0.00 | Ctct 971.65 | Rolloff  1.69 | tip 0.068
-S   9175040 | R 1211.16 | Reach +214.25 | Grasp  0.00 | Ctct 1026.91 | Rolloff  0.00 | tip 0.067
-S   9830400 | R 1215.37 | Reach +219.23 | Grasp  0.00 | Ctct 1026.14 | Rolloff  0.00 | tip 0.066
-S  10485760 | R 1270.46 | Reach +230.52 | Grasp  0.00 | Ctct 1069.94 | Rolloff  0.00 | tip 0.065
-S  11141120 | R 1299.64 | Reach +245.30 | Grasp  0.00 | Ctct 1084.34 | Rolloff  0.00 | tip 0.064
-S  11796480 | R 1328.93 | Reach +257.75 | Grasp  0.00 | Ctct 1101.19 | Rolloff  0.00 | tip 0.063
-S  12451840 | R 1340.95 | Reach +272.86 | Grasp  0.00 | Ctct 1098.08 | Rolloff  0.00 | tip 0.062
-S  13107200 | R 1354.97 | Reach +281.49 | Grasp  0.00 | Ctct 1103.48 | Rolloff  0.00 | tip 0.061
-S  13762560 | R 1368.61 | Reach +284.50 | Grasp  0.00 | Ctct 1114.11 | Rolloff  0.00 | tip 0.060
-S  14417920 | R 1372.74 | Reach +285.56 | Grasp  0.00 | Ctct 1117.18 | Rolloff  0.00 | tip 0.059
-S  15073280 | R 1383.91 | Reach +285.60 | Grasp  0.00 | Ctct 1128.31 | Rolloff  0.00 | tip 0.059
-S  15728640 | R 1399.84 | Reach +286.77 | Grasp  0.00 | Ctct 1143.07 | Rolloff  0.00 | tip 0.058
-S  16384000 | R 1395.14 | Reach +287.31 | Grasp  0.00 | Ctct 1137.83 | Rolloff  0.00 | tip 0.057
-S  17039360 | R 1414.63 | Reach +287.58 | Grasp  0.00 | Ctct 1157.06 | Rolloff  0.00 | tip 0.057
-S  17694720 | R 1423.83 | Reach +287.62 | Grasp  0.00 | Ctct 1166.22 | Rolloff  0.00 | tip 0.056
-S  18350080 | R 1430.88 | Reach +287.69 | Grasp  0.00 | Ctct 1173.18 | Rolloff  0.00 | tip 0.056
-S  19005440 | R 1433.32 | Reach +288.35 | Grasp  0.00 | Ctct 1174.97 | Rolloff  0.00 | tip 0.056
-S  19660800 | R 1437.66 | Reach +288.60 | Grasp  0.00 | Ctct 1179.06 | Rolloff  0.00 | tip 0.056
-S  20316160 | R 1442.20 | Reach +288.75 | Grasp  0.00 | Ctct 1183.45 | Rolloff  0.00 | tip 0.055
-S  20971520 | R 1444.19 | Reach +289.05 | Grasp  0.00 | Ctct 1185.13 | Rolloff  0.00 | tip 0.055
-S  21626880 | R 1444.30 | Reach +289.06 | Grasp  0.00 | Ctct 1185.24 | Rolloff  0.00 | tip 0.055
-S  22282240 | R 1445.20 | Reach +289.19 | Grasp  0.00 | Ctct 1186.01 | Rolloff  0.00 | tip 0.055
-S  22937600 | R 1447.08 | Reach +289.26 | Grasp  0.00 | Ctct 1187.81 | Rolloff  0.00 | tip 0.055
-S  23592960 | R 1447.11 | Reach +289.40 | Grasp  0.00 | Ctct 1187.70 | Rolloff  0.00 | tip 0.055
-S  24248320 | R 1449.87 | Reach +289.44 | Grasp  0.01 | Ctct 1190.43 | Rolloff  0.00 | tip 0.055
-S  24903680 | R 1450.59 | Reach +289.56 | Grasp  0.01 | Ctct 1191.02 | Rolloff  0.00 | tip 0.054
-S  25559040 | R 1451.58 | Reach +289.65 | Grasp  0.01 | Ctct 1191.91 | Rolloff  0.00 | tip 0.054
-S  26214400 | R 1452.30 | Reach +289.66 | Grasp  0.02 | Ctct 1192.62 | Rolloff  0.00 | tip 0.054
-S  26869760 | R 1453.11 | Reach +289.76 | Grasp  0.02 | Ctct 1193.34 | Rolloff  0.00 | tip 0.054
-S  27525120 | R 1452.12 | Reach +289.67 | Grasp  0.02 | Ctct 1192.43 | Rolloff  0.00 | tip 0.054
-S  30801920 | R 1452.71 | Reach +289.83 | Grasp  0.03 | Ctct 1192.85 | Rolloff  0.00 | tip 0.054
-S  31457280 | R 1452.68 | Reach +289.93 | Grasp  0.03 | Ctct 1192.72 | Rolloff  0.00 | tip 0.054
-S  32112640 | R 1454.97 | Reach +289.80 | Grasp  0.03 | Ctct 1195.14 | Rolloff  0.00 | tip 0.054
+S         0 | R     6.23 | [main] Reach +48.76 Grasp  0.00 Ctct  0.00 Rolloff  0.00 tip 0.164 | [aux] Grip 0.000 Ctct 0.000 Slip 0.000 Energy 535.29 Switch 599.63 touch 0.000
+S    655360 | R   186.81 | [main] Reach +136.62 Grasp  0.50 Ctct 92.20 Rolloff  1.02 tip 0.124 | [aux] Grip 2.667 Ctct 1.328 Slip 0.005 Energy 620.69 Switch 546.98 touch 0.014
+S   1310720 | R   398.73 | [main] Reach +134.98 Grasp  4.35 Ctct 304.70 Rolloff  6.85 tip 0.102 | [aux] Grip 11.994 Ctct 9.002 Slip 0.023 Energy 621.90 Switch 525.09 touch 0.156
+S   1966080 | R   643.64 | [main] Reach +156.55 Grasp 11.44 Ctct 512.89 Rolloff  5.10 tip 0.087 | [aux] Grip 22.255 Ctct 21.400 Slip 0.045 Energy 658.06 Switch 510.96 touch 0.529
+S   2621440 | R   792.73 | [main] Reach +197.40 Grasp 12.35 Ctct 613.20 Rolloff  0.23 tip 0.081 | [aux] Grip 26.875 Ctct 28.641 Slip 0.060 Energy 633.48 Switch 522.62 touch 0.790
+S   3276800 | R  1048.71 | [main] Reach +248.92 Grasp 28.53 Ctct 796.40 Rolloff  1.11 tip 0.074 | [aux] Grip 42.275 Ctct 46.115 Slip 0.075 Energy 619.26 Switch 517.40 touch 1.149
+S   3932160 | R  1193.30 | [main] Reach +267.90 Grasp 52.67 Ctct 889.37 Rolloff  0.00 tip 0.071 | [aux] Grip 55.902 Ctct 64.100 Slip 0.082 Energy 622.84 Switch 500.30 touch 1.604
+S   4587520 | R  1329.95 | [main] Reach +285.52 Grasp 91.32 Ctct 963.08 Rolloff  0.00 tip 0.068 | [aux] Grip 69.770 Ctct 82.049 Slip 0.092 Energy 630.25 Switch 484.98 touch 1.985
+S   5242880 | R  1416.70 | [main] Reach +298.56 Grasp 145.09 Ctct 977.02 Rolloff  0.00 tip 0.066 | [aux] Grip 81.127 Ctct 98.510 Slip 0.096 Energy 638.16 Switch 462.18 touch 2.377
+S   5898240 | R  1544.13 | [main] Reach +299.99 Grasp 223.96 Ctct 1017.74 Rolloff  0.00 tip 0.064 | [aux] Grip 92.995 Ctct 116.469 Slip 0.098 Energy 643.75 Switch 440.02 touch 2.758
+S   6553600 | R  1675.05 | [main] Reach +299.54 Grasp 320.63 Ctct 1047.16 Rolloff  0.00 tip 0.063 | [aux] Grip 102.442 Ctct 130.855 Slip 0.094 Energy 649.18 Switch 413.95 touch 2.966
+S   7208960 | R  1762.14 | [main] Reach +299.61 Grasp 377.35 Ctct 1072.75 Rolloff  0.00 tip 0.063 | [aux] Grip 110.924 Ctct 143.021 Slip 0.095 Energy 656.82 Switch 384.80 touch 3.222
+S   7864320 | R  1851.32 | [main] Reach +298.98 Grasp 463.38 Ctct 1071.67 Rolloff  0.00 tip 0.062 | [aux] Grip 118.760 Ctct 156.203 Slip 0.092 Energy 667.38 Switch 351.38 touch 3.549
+S   8519680 | R  1963.14 | [main] Reach +299.22 Grasp 555.30 Ctct 1086.43 Rolloff  0.00 tip 0.062 | [aux] Grip 126.799 Ctct 169.918 Slip 0.093 Energy 678.06 Switch 322.69 touch 3.896
+S   9175040 | R  2073.83 | [main] Reach +299.76 Grasp 621.07 Ctct 1126.88 Rolloff  0.00 tip 0.061 | [aux] Grip 132.820 Ctct 180.518 Slip 0.095 Energy 690.05 Switch 292.56 touch 4.183
+S   9830400 | R  2151.73 | [main] Reach +299.77 Grasp 699.64 Ctct 1123.12 Rolloff  0.00 tip 0.061 | [aux] Grip 136.692 Ctct 188.721 Slip 0.096 Energy 700.65 Switch 258.60 touch 4.503
+S  10485760 | R  2216.35 | [main] Reach +299.78 Grasp 765.29 Ctct 1119.96 Rolloff  0.00 tip 0.060 | [aux] Grip 138.787 Ctct 193.977 Slip 0.101 Energy 714.10 Switch 225.46 touch 4.742
+S  11141120 | R  2269.34 | [main] Reach +299.78 Grasp 817.14 Ctct 1120.04 Rolloff  0.00 tip 0.060 | [aux] Grip 139.651 Ctct 195.975 Slip 0.102 Energy 725.78 Switch 200.55 touch 4.873
+S  11796480 | R  2330.01 | [main] Reach +300.09 Grasp 864.38 Ctct 1131.67 Rolloff  0.00 tip 0.060 | [aux] Grip 140.526 Ctct 200.090 Slip 0.100 Energy 738.08 Switch 175.42 touch 5.061
+S  12451840 | R  2352.83 | [main] Reach +299.81 Grasp 892.26 Ctct 1127.05 Rolloff  0.00 tip 0.060 | [aux] Grip 137.773 Ctct 200.215 Slip 0.102 Energy 746.29 Switch 156.26 touch 5.175
+S  13107200 | R  2390.39 | [main] Reach +299.95 Grasp 917.55 Ctct 1139.49 Rolloff  0.00 tip 0.059 | [aux] Grip 134.708 Ctct 200.354 Slip 0.103 Energy 757.04 Switch 142.52 touch 5.283
+S  13762560 | R  2391.29 | [main] Reach +299.20 Grasp 923.04 Ctct 1136.73 Rolloff  0.00 tip 0.060 | [aux] Grip 130.365 Ctct 198.074 Slip 0.100 Energy 766.56 Switch 129.34 touch 5.303
+S  14417920 | R  2420.42 | [main] Reach +299.83 Grasp 936.21 Ctct 1151.51 Rolloff  0.00 tip 0.059 | [aux] Grip 130.631 Ctct 199.859 Slip 0.100 Energy 771.78 Switch 122.67 touch 5.371
+S  15073280 | R  2424.83 | [main] Reach +299.93 Grasp 937.45 Ctct 1154.74 Rolloff  0.00 tip 0.059 | [aux] Grip 130.145 Ctct 199.232 Slip 0.097 Energy 776.78 Switch 118.88 touch 5.347
+S  15728640 | R  2424.37 | [main] Reach +299.85 Grasp 936.65 Ctct 1155.27 Rolloff  0.00 tip 0.059 | [aux] Grip 129.202 Ctct 199.285 Slip 0.096 Energy 779.93 Switch 115.69 touch 5.371
+S  16384000 | R  2424.32 | [main] Reach +299.75 Grasp 939.63 Ctct 1153.22 Rolloff  0.00 tip 0.059 | [aux] Grip 126.200 Ctct 197.660 Slip 0.096 Energy 777.02 Switch 113.36 touch 5.364
+S  17039360 | R  2405.98 | [main] Reach +299.71 Grasp 920.52 Ctct 1153.94 Rolloff  0.00 tip 0.059 | [aux] Grip 125.987 Ctct 198.242 Slip 0.094 Energy 773.97 Switch 112.62 touch 5.370
+S  17694720 | R  2410.11 | [main] Reach +299.59 Grasp 927.14 Ctct 1151.78 Rolloff  0.00 tip 0.059 | [aux] Grip 124.525 Ctct 198.289 Slip 0.092 Energy 779.02 Switch 108.33 touch 5.377
+S  18350080 | R  2420.64 | [main] Reach +299.62 Grasp 936.38 Ctct 1152.68 Rolloff  0.00 tip 0.059 | [aux] Grip 126.613 Ctct 198.096 Slip 0.088 Energy 771.84 Switch 110.14 touch 5.254
+S  19005440 | R  2410.16 | [main] Reach +299.43 Grasp 923.17 Ctct 1155.18 Rolloff  0.00 tip 0.059 | [aux] Grip 128.092 Ctct 198.492 Slip 0.089 Energy 768.60 Switch 108.10 touch 5.242
+S  19660800 | R  2409.26 | [main] Reach +299.50 Grasp 922.47 Ctct 1154.92 Rolloff  0.00 tip 0.059 | [aux] Grip 128.248 Ctct 198.387 Slip 0.087 Energy 765.45 Switch 109.00 touch 5.203
+S  20316160 | R  2405.75 | [main] Reach +299.34 Grasp 919.99 Ctct 1153.91 Rolloff  0.00 tip 0.059 | [aux] Grip 129.049 Ctct 198.301 Slip 0.087 Energy 759.49 Switch 109.11 touch 5.159
+S  20971520 | R  2416.44 | [main] Reach +299.47 Grasp 928.46 Ctct 1155.87 Rolloff  0.00 tip 0.059 | [aux] Grip 129.038 Ctct 198.746 Slip 0.086 Energy 756.75 Switch 107.73 touch 5.140
+S  21626880 | R  2414.52 | [main] Reach +299.61 Grasp 928.05 Ctct 1154.04 Rolloff  0.00 tip 0.059 | [aux] Grip 130.077 Ctct 198.635 Slip 0.085 Energy 752.72 Switch 107.73 touch 5.090
+S  22282240 | R  2427.87 | [main] Reach +299.92 Grasp 941.44 Ctct 1153.34 Rolloff  0.00 tip 0.059 | [aux] Grip 131.525 Ctct 199.014 Slip 0.083 Energy 749.25 Switch 109.20 touch 5.062
+S  22937600 | R  2438.96 | [main] Reach +300.16 Grasp 950.72 Ctct 1154.95 Rolloff  0.00 tip 0.059 | [aux] Grip 131.574 Ctct 198.812 Slip 0.083 Energy 738.75 Switch 109.94 touch 4.981
+S  23592960 | R  2450.76 | [main] Reach +300.60 Grasp 961.63 Ctct 1154.88 Rolloff  0.00 tip 0.059 | [aux] Grip 133.647 Ctct 199.572 Slip 0.081 Energy 727.79 Switch 112.84 touch 4.940
+S  24248320 | R  2407.64 | [main] Reach +301.04 Grasp 972.58 Ctct 1100.23 Rolloff  0.00 tip 0.059 | [aux] Grip 134.738 Ctct 199.262 Slip 0.082 Energy 720.39 Switch 113.67 touch 4.865
+S  24903680 | R  2456.49 | [main] Reach +300.93 Grasp 974.85 Ctct 1146.91 Rolloff  0.00 tip 0.059 | [aux] Grip 134.564 Ctct 199.434 Slip 0.081 Energy 718.33 Switch 113.52 touch 4.870
