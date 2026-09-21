@@ -1,0 +1,18 @@
+<mujoco model="cube_56mm">
+  <!-- 56x56x56mm 정육면체, x/y 슬라이드만 있어 높이(z) 고정, 회전 없음.
+       z=0.10m: (CAD 수정본 기준) 4손가락 완전히 오므렸을 때 손끝이 모이는 실측 높이 -->
+  <default>
+    <default class="cube">
+      <geom friction="1.0 0.01 0.001" conaffinity="1" condim="4"/>
+    </default>
+  </default>
+  <worldbody>
+    <body name="cube" pos="0 0 0.10" quat="1 0 0 0" childclass="cube">
+      <joint name="cube_slide_x" type="slide" axis="1 0 0" damping="0.5"/>
+      <joint name="cube_slide_y" type="slide" axis="0 1 0" damping="0.5"/>
+      <geom name="cube" type="box" size="0.028 0.028 0.028" mass="0.07"
+            group="2" rgba="0.85 0.15 0.15 1"/>
+      <site name="cube_center" pos="0 0 0" group="4" size="0.001"/>
+    </body>
+  </worldbody>
+</mujoco>

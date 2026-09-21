@@ -1,0 +1,14 @@
+<mujoco model="robot_box_scene">
+    <include file="robot.xml"/>
+    <include file="reorientation_cube.xml"/>
+    <worldbody>
+        <geom name="ground" type="plane" size="5.5 5.5 0.1" rgba=".9 .9 .9 1.0" pos="0 0 -0.3"/>
+    </worldbody>
+    <option gravity="0 0 -9.81"/>
+    <sensor>
+        <touch name="touch_tip" site="touch_zone"/>
+        <touch name="touch_tip_2" site="touch_zone_2"/>
+        <touch name="touch_tip_3" site="touch_zone_3"/>
+        <touch name="touch_tip_4" site="touch_zone_4"/>
+    </sensor>
+</mujoco>
