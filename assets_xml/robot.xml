@@ -1,0 +1,266 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape https://cad.onshape.com/documents/8e3b798062dc68d62ddd1283/w/f24c7ae362d29fd08e04f814/e/846a14a309426dccc22e67ba -->
+<mujoco model="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <default>
+    <default class="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
+      <joint frictionloss="0.1" armature="0.005"/>
+      <position kp="50" dampratio="1"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <!-- contype=1/conaffinity=2 for all robot collision geoms: this makes the
+             gripper's own parts NOT collide with each other (1 & 2 == 0), while still
+             colliding normally with external objects like the cube, as long as the
+             cube's geoms use contype=2/conaffinity=1 (see cube_fragment.xml).
+             This fixes the self-collision that was blocking the -body-link1 joints
+             from reaching their full curl range. -->
+        <geom group="3" contype="1" conaffinity="2"/>
+      </default>
+    </default>
+  </default>
+  <!-- Additional tendons.xml -->
+  <tendon>
+    <fixed name="right_finger_tendon">
+      <joint joint="right-body-link1" coef="1.0"/>
+      <joint joint="right-link1-joint" coef="1.0"/>
+      <joint joint="right-joint-joint" coef="1.0"/>
+      <joint joint="right-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="front_finger_tendon">
+      <joint joint="front-body-link1" coef="1.0"/>
+      <joint joint="front-link1-joint" coef="1.0"/>
+      <joint joint="front-joint-joint" coef="1.0"/>
+      <joint joint="front-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="left_finger_tendon">
+      <joint joint="left-body-link1" coef="1.0"/>
+      <joint joint="left-link1-joint" coef="1.0"/>
+      <joint joint="left-joint-joint" coef="1.0"/>
+      <joint joint="left-joint-link2" coef="1.0"/>
+    </fixed>
+    <fixed name="back_finger_tendon">
+      <joint joint="back-body-link1" coef="1.0"/>
+      <joint joint="back-link1-joint" coef="1.0"/>
+      <joint joint="back-joint-joint" coef="1.0"/>
+      <joint joint="back-joint-link2" coef="1.0"/>
+    </fixed>
+  </tendon>
+    <contact>
+    <exclude body1="1_moter_based" body2="part_1"/>
+    <exclude body1="part_1" body2="part_1_2"/>
+    <exclude body1="part_1_2" body2="part_1_3"/>
+    <exclude body1="part_1_3" body2="part_1_4"/>
+    <exclude body1="1_moter_based" body2="part_1_5"/>
+    <exclude body1="part_1_5" body2="part_1_6"/>
+    <exclude body1="part_1_6" body2="part_1_7"/>
+    <exclude body1="part_1_7" body2="part_1_8"/>
+    <exclude body1="1_moter_based" body2="part_1_9"/>
+    <exclude body1="part_1_9" body2="part_1_10"/>
+    <exclude body1="part_1_10" body2="part_1_11"/>
+    <exclude body1="part_1_11" body2="part_1_12"/>
+    <exclude body1="1_moter_based" body2="part_1_13"/>
+    <exclude body1="part_1_13" body2="part_1_14"/>
+    <exclude body1="part_1_14" body2="part_1_15"/>
+    <exclude body1="part_1_15" body2="part_1_16"/>
+  </contact>
+<worldbody>
+    <!-- Link 1_moter_based -->
+    <body name="1_moter_based" pos="0 0 0.211" quat="1 0 0 0" childclass="C:\Users\jeonj\Desktop\rl\left-rl-with-mujoco\my-robot">
+      <!-- freejoint removed on purpose, matching robot-x.xml: base body is rigidly
+           welded to the world. No joint here == the body's pos/quat above are fixed
+           for good, it cannot translate or rotate under any actuation or contact force.
+           pos.z carried over from robot-x.xml (0.223, tuned so fingertips land near the
+           cube's top layer at full curl). Since this robot.xml was re-exported after
+           fixing a CAD rotation issue, the mesh/joint frames differ from robot-x.xml -
+           RE-CHECK contact alignment with the cube in your scene/camera view and retune
+           this z value if needed. -->
+      <inertial pos="1.13586e-07 6.10623e-07 8.0587e-05" mass="0.0988574" fullinertia="7.93967e-05 7.93898e-05 0.000151032 -0 -1.51466e-07 1.56e-10"/>
+      <!-- Part 1_moter_based -->
+      <geom type="mesh" class="visual" pos="-2.32695e-05 -0 0.011" quat="0.0010577 -0 0.999999 -0" mesh="1_moter_based" material="1_moter_based_material"/>
+      <geom type="box" class="collision" pos="-1.23269e-10 0 4.4e-08" quat="0.0010577 -0 0.999999 -0" size="0.0602996 0.0602996 0.011"/>
+      <!-- Link part_1 -->
+      <body name="part_1" pos="0.0500073 0 -0.00339422" quat="0.70710639 -0.70710639 -0.00074796 -0.00074796">
+        <!-- Joint from 1_moter_based to part_1 -->
+        <joint axis="0 0 1" name="right-body-link1" type="hinge" range="0 1.5707963267948966"/>
+        <inertial pos="0.0303144 -0.00114407 -2.76e-10" mass="0.00967703" fullinertia="5.09882e-07 3.73089e-06 3.70397e-06 2.49e-09 -0 0"/>
+        <!-- Part part_1 -->
+        <geom type="mesh" class="visual" pos="-0.00605674 0.0178057 -0.008" quat="0.707107 0 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+        <geom type="box" class="collision" pos="0.0273631 -0.00252505 0" quat="0.707107 0 -0 -0.707107" size="0.010475 0.0326633 0.008"/>
+        <!-- Link part_1_2 -->
+        <body name="part_1_2" pos="0.0600264 -0.00109104 0" quat="1 0 0 0">
+          <!-- Joint from part_1 to part_1_2 -->
+          <joint axis="0 0 1" name="right-link1-joint" type="hinge" range="0.0 0.17453292519943295"/>
+          <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+          <!-- Part part_1_2 -->
+          <geom type="mesh" class="visual" pos="-0.066152 0.0188877 -0.008" quat="0.707107 0 -0 -0.707107" mesh="part_1__2" material="part_1__2_material"/>
+          <geom type="box" class="collision" pos="0.00312812 -0.00254674 0" quat="0.707107 0 -0 -0.707107" size="0.00327122 0.00312809 0.008"/>
+          <!-- Link part_1_3 -->
+          <body name="part_1_3" pos="0.00550329 0.000724522 -0" quat="1 -0 0 0">
+            <!-- Joint from part_1_2 to part_1_3 -->
+            <joint axis="0 0 1" name="right-joint-joint" type="hinge" range="0.0 0.17453292519943295"/>
+            <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+            <!-- Part part_1_3 -->
+            <geom type="mesh" class="visual" pos="-0.0716553 0.0181632 -0.008" quat="0.707107 -0 0 -0.707107" mesh="part_1__3" material="part_1__3_material"/>
+            <geom type="box" class="collision" pos="0.00348026 -0.00249631 0" quat="0.707107 -0 0 -0.707107" size="0.00322251 0.00348024 0.008"/>
+            <!-- Link part_1_4 -->
+            <body name="part_1_4" pos="0.00551629 0.000726234 -0" quat="1 -0 -0 0">
+              <!-- Joint from part_1_3 to part_1_4 -->
+              <joint axis="0 0 1" name="right-joint-link2" type="hinge" range="0.0 0.17453292519943295"/>
+              <inertial pos="0.0177914 0.00463425 -2.4933e-08" mass="0.00789483" fullinertia="4.5574e-07 1.04275e-06 1.16314e-06 -3.06836e-07 2e-12 1e-12"/>
+              <!-- Part part_1_4 -->
+              <geom type="mesh" class="visual" pos="-0.0771851 0.0174352 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__4" material="part_1__4_material"/>
+              <geom type="box" class="collision" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" size="0.0137562 0.0209902 0.008"/>
+                          <site name="tip" type="sphere" size="0.004" pos="0.0408 0.0034 0" rgba="1 0 0 0.5" group="4"/>
+              <site name="touch_zone" type="sphere" size="0.03" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" group="5" rgba="0 1 0 0.15"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link part_1_5 -->
+      <body name="part_1_5" pos="7.40393e-06 -0.05 -0.00349999" quat="0.500529 -0.499471 0.499471 -0.500529">
+        <!-- Joint from 1_moter_based to part_1_5 -->
+        <joint axis="0 0 1" name="front-body-link1" type="hinge" range="-4.440892098500626e-15 1.5707963267948921"/>
+        <inertial pos="0.0303144 -0.00114407 -2.76e-10" mass="0.00967703" fullinertia="5.09882e-07 3.73089e-06 3.70397e-06 2.49e-09 -0 0"/>
+        <!-- Part part_1_5 -->
+        <geom type="mesh" class="visual" pos="-0.00605674 0.0178057 -0.008" quat="0.707107 -0 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+        <geom type="box" class="collision" pos="0.0273631 -0.00252505 0" quat="0.707107 -0 -0 -0.707107" size="0.010475 0.0326633 0.008"/>
+        <!-- Link part_1_6 -->
+        <body name="part_1_6" pos="0.0600264 -0.00109104 0" quat="1 0 -0 0">
+          <!-- Joint from part_1_5 to part_1_6 -->
+          <joint axis="0 0 1" name="front-link1-joint" type="hinge" range="0.0 0.17453292519943295"/>
+          <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+          <!-- Part part_1_6 -->
+          <geom type="mesh" class="visual" pos="-0.066152 0.0188877 -0.008" quat="0.707107 -0 0 -0.707107" mesh="part_1__2" material="part_1__2_material"/>
+          <geom type="box" class="collision" pos="0.00312812 -0.00254674 0" quat="0.707107 -0 0 -0.707107" size="0.00327122 0.00312809 0.008"/>
+          <!-- Link part_1_7 -->
+          <body name="part_1_7" pos="0.00550329 0.000724522 -0" quat="1 -0 -0 -0">
+            <!-- Joint from part_1_6 to part_1_7 -->
+            <joint axis="0 0 1" name="front-joint-joint" type="hinge" range="0.0 0.17453292519943295"/>
+            <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+            <!-- Part part_1_7 -->
+            <geom type="mesh" class="visual" pos="-0.0716553 0.0181632 -0.008" quat="0.707107 0 -0 -0.707107" mesh="part_1__3" material="part_1__3_material"/>
+            <geom type="box" class="collision" pos="0.00348026 -0.00249631 0" quat="0.707107 0 -0 -0.707107" size="0.00322251 0.00348024 0.008"/>
+            <!-- Link part_1_8 -->
+            <body name="part_1_8" pos="0.00551629 0.000726234 0" quat="1 0 0 0">
+              <!-- Joint from part_1_7 to part_1_8 -->
+              <joint axis="0 0 1" name="front-joint-link2" type="hinge" range="0.0 0.17453292519943295"/>
+              <inertial pos="0.0177914 0.00463425 -2.4933e-08" mass="0.00789483" fullinertia="4.5574e-07 1.04275e-06 1.16314e-06 -3.06836e-07 2e-12 1e-12"/>
+              <!-- Part part_1_8 -->
+              <geom type="mesh" class="visual" pos="-0.0771851 0.0174352 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__4" material="part_1__4_material"/>
+              <geom type="box" class="collision" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" size="0.0137562 0.0209902 0.008"/>
+                          <site name="tip_2" type="sphere" size="0.004" pos="0.0408 0.0034 0" rgba="1 0 0 0.5" group="4"/>
+              <site name="touch_zone_2" type="sphere" size="0.03" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" group="5" rgba="0 1 0 0.15"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link part_1_9 -->
+      <body name="part_1_9" pos="-0.0499925 -0 -0.00360576" quat="0.00074792 0.00074792 0.70710639 -0.70710639">
+        <!-- Joint from 1_moter_based to part_1_9 -->
+        <joint axis="0 0 1" name="left-body-link1" type="hinge" range="0 1.5707963267948966"/>
+        <inertial pos="0.0303144 -0.00114407 -2.76e-10" mass="0.00967703" fullinertia="5.09882e-07 3.73089e-06 3.70397e-06 2.49e-09 -0 0"/>
+        <!-- Part part_1_9 -->
+        <geom type="mesh" class="visual" pos="-0.00605674 0.0178057 -0.008" quat="0.707107 0 -0 -0.707107" mesh="part_1" material="part_1_material"/>
+        <geom type="box" class="collision" pos="0.0273631 -0.00252505 0" quat="0.707107 0 -0 -0.707107" size="0.010475 0.0326633 0.008"/>
+        <!-- Link part_1_10 -->
+        <body name="part_1_10" pos="0.0600264 -0.00109104 0" quat="1 -0 0 0">
+          <!-- Joint from part_1_9 to part_1_10 -->
+          <joint axis="0 0 1" name="left-link1-joint" type="hinge" range="0.0 0.17453292519943295"/>
+          <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+          <!-- Part part_1_10 -->
+          <geom type="mesh" class="visual" pos="-0.066152 0.0188877 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__2" material="part_1__2_material"/>
+          <geom type="box" class="collision" pos="0.00312812 -0.00254674 0" quat="0.707107 0 0 -0.707107" size="0.00327122 0.00312809 0.008"/>
+          <!-- Link part_1_11 -->
+          <body name="part_1_11" pos="0.00550329 0.000724522 0" quat="1 0 -0 0">
+            <!-- Joint from part_1_10 to part_1_11 -->
+            <joint axis="0 0 1" name="left-joint-joint" type="hinge" range="0.0 0.17453292519943295"/>
+            <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+            <!-- Part part_1_11 -->
+            <geom type="mesh" class="visual" pos="-0.0716553 0.0181632 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__3" material="part_1__3_material"/>
+            <geom type="box" class="collision" pos="0.00348026 -0.00249631 0" quat="0.707107 0 0 -0.707107" size="0.00322251 0.00348024 0.008"/>
+            <!-- Link part_1_12 -->
+            <body name="part_1_12" pos="0.00551629 0.000726234 -0" quat="1 -0 -0 -0">
+              <!-- Joint from part_1_11 to part_1_12 -->
+              <joint axis="0 0 1" name="left-joint-link2" type="hinge" range="0.0 0.17453292519943295"/>
+              <inertial pos="0.0177914 0.00463425 -2.4933e-08" mass="0.00789483" fullinertia="4.5574e-07 1.04275e-06 1.16314e-06 -3.06836e-07 2e-12 1e-12"/>
+              <!-- Part part_1_12 -->
+              <geom type="mesh" class="visual" pos="-0.0771851 0.0174352 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__4" material="part_1__4_material"/>
+              <geom type="box" class="collision" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" size="0.0137562 0.0209902 0.008"/>
+                          <site name="tip_3" type="sphere" size="0.004" pos="0.0408 0.0034 0" rgba="1 0 0 0.5" group="4"/>
+              <site name="touch_zone_3" type="sphere" size="0.03" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" group="5" rgba="0 1 0 0.15"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Link part_1_13 -->
+      <body name="part_1_13" pos="7.40393e-06 0.05 -0.00349999" quat="0.499471 -0.500529 -0.500529 0.499471">
+        <!-- Joint from 1_moter_based to part_1_13 -->
+        <joint axis="0 0 1" name="back-body-link1" type="hinge" range="0.0 1.5707963267948966"/>
+        <inertial pos="0.0303144 -0.00114407 -2.76e-10" mass="0.00967703" fullinertia="5.09882e-07 3.73089e-06 3.70397e-06 2.49e-09 -0 0"/>
+        <!-- Part part_1_13 -->
+        <geom type="mesh" class="visual" pos="-0.00605674 0.0178057 -0.008" quat="0.707107 -0 0 -0.707107" mesh="part_1" material="part_1_material"/>
+        <geom type="box" class="collision" pos="0.0273631 -0.00252505 0" quat="0.707107 -0 0 -0.707107" size="0.010475 0.0326633 0.008"/>
+        <!-- Link part_1_14 -->
+        <body name="part_1_14" pos="0.0600264 -0.00109104 0" quat="1 0 -0 -0">
+          <!-- Joint from part_1_13 to part_1_14 -->
+          <joint axis="0 0 1" name="back-link1-joint" type="hinge" range="0.0 0.17453292519943295"/>
+          <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+          <!-- Part part_1_14 -->
+          <geom type="mesh" class="visual" pos="-0.066152 0.0188877 -0.008" quat="0.707107 0 0 -0.707107" mesh="part_1__2" material="part_1__2_material"/>
+          <geom type="box" class="collision" pos="0.00312812 -0.00254674 0" quat="0.707107 0 0 -0.707107" size="0.00327122 0.00312809 0.008"/>
+          <!-- Link part_1_15 -->
+          <body name="part_1_15" pos="0.00550329 0.000724522 -0" quat="1 -0 0 0">
+            <!-- Joint from part_1_14 to part_1_15 -->
+            <joint axis="0 0 1" name="back-joint-joint" type="hinge" range="0.0 0.17453292519943295"/>
+            <inertial pos="0 0 0" mass="1e-09" fullinertia="1e-09 1e-09 1e-09 0 0 0"/>
+            <!-- Part part_1_15 -->
+            <geom type="mesh" class="visual" pos="-0.0716553 0.0181632 -0.008" quat="0.707107 -0 0 -0.707107" mesh="part_1__3" material="part_1__3_material"/>
+            <geom type="box" class="collision" pos="0.00348026 -0.00249631 0" quat="0.707107 -0 0 -0.707107" size="0.00322251 0.00348024 0.008"/>
+            <!-- Link part_1_16 -->
+            <body name="part_1_16" pos="0.00551629 0.000726234 0" quat="1 -0 0 -0">
+              <!-- Joint from part_1_15 to part_1_16 -->
+              <joint axis="0 0 1" name="back-joint-link2" type="hinge" range="0.0 0.17453292519943295"/>
+              <inertial pos="0.0177914 0.00463425 -2.4933e-08" mass="0.00789483" fullinertia="4.5574e-07 1.04275e-06 1.16314e-06 -3.06836e-07 2e-12 1e-12"/>
+              <!-- Part part_1_16 -->
+              <geom type="mesh" class="visual" pos="-0.0771851 0.0174352 -0.008" quat="0.707107 0 -0 -0.707107" mesh="part_1__4" material="part_1__4_material"/>
+              <geom type="box" class="collision" pos="0.0200098 0.00346335 0" quat="0.707107 0 -0 -0.707107" size="0.0137562 0.0209902 0.008"/>
+                          <site name="tip_4" type="sphere" size="0.004" pos="0.0408 0.0034 0" rgba="1 0 0 0.5" group="4"/>
+              <site name="touch_zone_4" type="sphere" size="0.03" pos="0.0200098 0.00346335 0" quat="0.707107 0 0 -0.707107" group="5" rgba="0 1 0 0.15"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <asset>
+    <mesh file="part_1.stl"/>
+    <mesh file="part_1__4.stl"/>
+    <mesh file="1_moter_based.stl"/>
+    <mesh file="part_1__2.stl"/>
+    <mesh file="part_1__3.stl"/>
+    <material name="1_moter_based_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="part_1_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="part_1__2_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="part_1__3_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="part_1__4_material" rgba="0.980392 0.713725 0.00392157 1"/>
+  </asset>
+  <actuator>
+    <!-- v5: torque motor -> position servo (실기기 DYNAMIXEL XL330, mode5
+         Current-based Position Control 모사). ctrlrange는 텐던 길이(rad) 그대로:
+         0=완전 열림, 2.0944(=pi/2 + 3*10deg)=완전 닫힘.
+         forcerange는 실기기의 전류 상한(비압박 시 자유 추종, 접촉 시 과도한
+         압착력 방지)에 대응하는 값으로 캘리브레이션 필요(TODO: 실측 기반 조정). -->
+    <position name="right_finger_motor" tendon="right_finger_tendon"
+              ctrlrange="0 2.0943951023931953" kp="8" kv="0.3" forcerange="-2 2"/>
+    <position name="front_finger_motor" tendon="front_finger_tendon"
+              ctrlrange="0 2.0943951023931953" kp="8" kv="0.3" forcerange="-2 2"/>
+    <position name="left_finger_motor" tendon="left_finger_tendon"
+              ctrlrange="0 2.0943951023931953" kp="8" kv="0.3" forcerange="-2 2"/>
+    <position name="back_finger_motor" tendon="back_finger_tendon"
+              ctrlrange="0 2.0943951023931953" kp="8" kv="0.3" forcerange="-2 2"/>
+  </actuator>
+  <equality/>
+</mujoco>
