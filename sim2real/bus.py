@@ -18,8 +18,38 @@ def dxl_crc(data: bytes) -> int:
             crc = ((crc << 1) ^ 0x8005) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
     return crc
 
-
 def dxl_stuff(body: bytes) -> bytes:
+    """데이터 안의 헤더 모양이 실제 헤더로 오인되지 않도록 바이트 추가"""
+    result = bytearray()
+    for value in body:
+        result.append(value)
+        if result[-3:] == b"\xFF\xFF\xFD":
+            result.append(0xFD)
+    return bytes(result)
+
+def dxl_request(
+    port: serial.Serial,
+    device_id: int,
+    instruction: int,
+    params: bytes = b"",
+    expect_reply: bool = True,
+) -> bytes:
+    """XL330 명령을 전송하고 필요한 경우 응답을 기다린다."""
+    # 이전에 남은 수신 데이터를 지워 현재 명령의 응답만 읽는다.
+    port.reset_input_buffer()
+    port.write(dxl_packet(device_id, instruction, params))
+    port.flush()
+    return dxl_status(port, device_id) if expect_reply else b""
+
+
+def dxl_read(port: serial.Serial, device_id: int, address: int, size: int) -> bytes:
+    """XL330 제어 테이블의 값을 읽는다."""
+    data = dxl_request(port, device_id, 0x02, struct.pack("<HH", address, size))
+    if len(data) != size:
+        raise BusError("XL330 READ 길이 오류")
+    return data
+
+
     """데이터 안의 헤더 모양이 실제 헤더로 오인되지 않게 바이트를 추가한다."""
     result = bytearray()
     for value in body:
@@ -87,29 +117,6 @@ def dxl_status(port: serial.Serial, expected_id: int) -> bytes:
     if body[1]:
         raise BusError(f"XL330 ID {device_id} 장치 오류: 0x{body[1]:02X}")
     return body[2:]
-
-
-def dxl_request(
-    port: serial.Serial,
-    device_id: int,
-    instruction: int,
-    params: bytes = b"",
-    expect_reply: bool = True,
-) -> bytes:
-    """XL330 명령을 전송하고 필요한 경우 응답을 기다린다."""
-    # 이전에 남은 수신 데이터를 지워 현재 명령의 응답만 읽는다.
-    port.reset_input_buffer()
-    port.write(dxl_packet(device_id, instruction, params))
-    port.flush()
-    return dxl_status(port, device_id) if expect_reply else b""
-
-
-def dxl_read(port: serial.Serial, device_id: int, address: int, size: int) -> bytes:
-    """XL330 제어 테이블의 값을 읽는다."""
-    data = dxl_request(port, device_id, 0x02, struct.pack("<HH", address, size))
-    if len(data) != size:
-        raise BusError("XL330 READ 길이 오류")
-    return data
 
 
 def dxl_write(port: serial.Serial, device_id: int, address: int, data: bytes) -> None:
@@ -319,4 +326,6 @@ class Bus:
             except Fault as exc:
                 if 'write readback mismatch at 116:' not in str(exc): raise
                 last=exc
-        raise last
+        if last is not None:
+            raise last
+        raise Fault(f'ID {i}: hold preparation failed')
