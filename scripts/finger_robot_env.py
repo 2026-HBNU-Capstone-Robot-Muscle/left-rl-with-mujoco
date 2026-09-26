@@ -37,18 +37,23 @@ FINGER_TENDON_NAMES = (
 
 
 class FingerRobotEnv(gym.Env):
-    """A task for closing the four tendon-driven fingers."""
+    """A task for closing and holding an object with the four tendon-driven fingers."""
 
     metadata = {"render_modes": ["human"], "render_fps": 60}
 
-    def __init__(self, model_path: str | Path = DEFAULT_MODEL, render_mode: str | None = None):
+    def __init__(
+        self,
+        model_path: str | Path = DEFAULT_MODEL,
+        render_mode: str | None = None,
+        max_steps: int = 1000,
+    ):
         self.model_path = Path(model_path).resolve()
         self.render_mode = render_mode
 
         self.model = mujoco.MjModel.from_xml_path(str(self.model_path))
         self.data = mujoco.MjData(self.model)
 
-        self.max_steps = 5000
+        self.max_steps = max_steps
         self.step_count = 0
         self.viewer = None
 
@@ -158,13 +163,22 @@ class FingerRobotEnv(gym.Env):
             self.reward_state,
         )
 
-        terminated = bool(progress > 0.98)
+        # 물체 없이 헛스윙으로 끝까지 쥐어버린 경우(progress > 0.98 및 무접촉)에만 조기 종료
+        # 큐브와 접촉하여 파지하고 있는 경우에는 에피소드를 유지(Hold 지속)
+        missed = bool(progress > 0.98 and reward_breakdown.get("n_contacts", 0) == 0)
+        terminated = missed
         truncated = self.step_count >= self.max_steps
 
         if self.render_mode == "human":
             self.render()
 
-        info = {"finger_progress": progress, "reward_breakdown": reward_breakdown}
+        info = {
+            "finger_progress": progress,
+            "reward_breakdown": reward_breakdown,
+            "mean_force": reward_breakdown.get("mean_force", 0.0),
+            "n_contacts": reward_breakdown.get("n_contacts", 0),
+            "is_holding": reward_breakdown.get("is_holding", False),
+        }
         return self._get_obs(), reward, terminated, truncated, info
 
     def render(self) -> None:
@@ -187,5 +201,9 @@ class FingerRobotEnv(gym.Env):
             self.viewer = None
 
 
-def make_env(model_path: Path | str, render_mode: str | None = None):
-    return Monitor(FingerRobotEnv(model_path=model_path, render_mode=render_mode))
+def make_env(
+    model_path: Path | str,
+    render_mode: str | None = None,
+    max_steps: int = 1000,
+):
+    return FingerRobotEnv(model_path=model_path, render_mode=render_mode, max_steps=max_steps)

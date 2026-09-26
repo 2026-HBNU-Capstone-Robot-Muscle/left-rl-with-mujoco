@@ -2,23 +2,18 @@
 Reward function implementation for the 4-finger MuJoCo grasping robot.
 
 Implements:
-    R_total = w1*R_grip + w2*R_contact - w3*P_slip - w4*P_energy - w5*P_switch
+    R_total = w_grip*R_grip + w_contact*R_contact + w_hold*R_full_hold
+              - w_slip*P_slip - w_smooth*P_smooth - w_switch*P_switch
 
-    R_grip    = exp(-|F_t - F_target| / sigma_F)
-    R_contact = N_contact / N_finger
-    P_slip    = sum_i ||delta_p_i_relative||
-    P_energy  = sum_i |a_i,t|
-    P_switch  = sum_i [a_i,t and a_i,t-1 are on opposite sides of the open/close threshold]
+    R_grip      = 파지력 보상 (목표 파지력 F_target까지 선형 증가, max_safe_force까지 1.0 유지)
+    R_contact   = N_contact / N_finger
+    R_full_hold = 4개 손가락이 모두 최소 유지력(min_hold_force) 이상으로 접촉 시 보너스 (1.0)
+    P_slip      = sum_i ||delta_p_i_relative|| (미끄러짐 페널티)
+    P_smooth    = sum_i (a_i,t - a_i,t-1)^2 (행동 급변/Jerk 억제)
+    P_switch    = sum_i [a_i,t and a_i,t-1 are on opposite sides of the open/close threshold]
 
 Assumes a 4-finger tendon-driven gripper (right/front/left/back), matching
-robot.xml + cube_fragment.xml from the current project:
-    - actuators named "<finger>_finger_motor", ctrl range [-1, 1]
-    - a cube body called "target_cube" with geoms "target_cube_body" /
-      "target_cube_top_layer"
-
-This module is intentionally self-contained (only needs `model` and `data`
-from mujoco) so it can be dropped into any Gymnasium-style env's step()
-function. Adjust FINGER_MOTORS / CUBE_GEOMS below if your naming differs.
+robot.xml + cube_fragment.xml from the current project.
 """
 
 from __future__ import annotations
@@ -50,17 +45,41 @@ SWITCH_THRESHOLD = 0.0
 
 @dataclass
 class RewardWeights:
-    w1: float = 1.0   # R_grip
-    w2: float = 1.0   # R_contact
-    w3: float = 0.5   # P_slip
-    w4: float = 0.01  # P_energy
-    w5: float = 0.1   # P_switch
+    w_grip: float = 2.5       # R_grip: 목표 파지력 추종 보상
+    w_contact: float = 1.0    # R_contact: 접촉 손가락 비율 보상
+    w_hold: float = 3.0       # R_full_hold: 4지 동시 안정 파지 보너스
+    w_slip: float = 0.5       # P_slip: 접촉점 미끄러짐 억제
+    w_smooth: float = 0.05    # P_smooth: 행동 급변(Jerk) 억제
+    w_switch: float = 0.05    # P_switch: 열림/닫힘 떨림 억제
+
+    # 하위 호환용 속성
+    @property
+    def w1(self) -> float:
+        return self.w_grip
+
+    @property
+    def w2(self) -> float:
+        return self.w_contact
+
+    @property
+    def w3(self) -> float:
+        return self.w_slip
+
+    @property
+    def w4(self) -> float:
+        return self.w_smooth
+
+    @property
+    def w5(self) -> float:
+        return self.w_switch
 
 
 @dataclass
 class RewardConfig:
-    target_force: float = 1.0   # F_target
-    sigma_f: float = 1.0        # sigma_F, normalizes force error
+    target_force: float = 6.0     # F_target: 큐브를 단단히 고정하기 위한 목표 파지력 (N)
+    min_hold_force: float = 1.5   # 4지 동시 고정 판정을 위한 최소 개별 손가락 힘 (N)
+    max_safe_force: float = 15.0  # 과도한 힘 제한 기준 (N)
+    sigma_f: float = 2.0          # 초과 힘 감쇠 계수
     weights: RewardWeights = field(default_factory=RewardWeights)
 
 
@@ -84,34 +103,40 @@ def _geom_id_set(model: mujoco.MjModel, names: list[str]) -> set[int]:
     return ids
 
 
-def _finger_contact_geom_prefix(finger: str) -> str:
-    """Best-effort mapping from finger name -> the geoms belonging to that
-    finger's last link (fingertip). Adjust if your geom naming differs.
-    e.g. 'right_finger_motor' -> geoms under body 'part_1_4'."""
-    return finger
+# 모든 손가락 링크 바디(링크1~링크4)를 해당 모터로 매핑
+BODY_TO_FINGER = {
+    # Right finger links
+    "part_1": "right_finger_motor",
+    "part_1_2": "right_finger_motor",
+    "part_1_3": "right_finger_motor",
+    "part_1_4": "right_finger_motor",
+    # Front finger links
+    "part_1_5": "front_finger_motor",
+    "part_1_6": "front_finger_motor",
+    "part_1_7": "front_finger_motor",
+    "part_1_8": "front_finger_motor",
+    # Left finger links
+    "part_1_9": "left_finger_motor",
+    "part_1_10": "left_finger_motor",
+    "part_1_11": "left_finger_motor",
+    "part_1_12": "left_finger_motor",
+    # Back finger links
+    "part_1_13": "back_finger_motor",
+    "part_1_14": "back_finger_motor",
+    "part_1_15": "back_finger_motor",
+    "part_1_16": "back_finger_motor",
+}
 
 
 def get_finger_contacts(
     model: mujoco.MjModel, data: mujoco.MjData, cube_geom_ids: set[int]
 ) -> dict[str, dict]:
     """
-    Scans mjData.contact for contacts between any robot geom and the cube.
-    Returns, per finger index (0..3), whether it's in contact and the world
-    contact position (used for slip calculation).
-
-    NOTE: this groups contacts by *body id* nearest each cube contact, not by
-    a strict finger->geom map, since fingertip geom names weren't provided.
-    Replace `body_to_finger` below with the exact fingertip body names from
-    your model (e.g. the last <body> in each kinematic chain: part_1_4,
-    part_1_8, part_1_12, part_1_16) for exact per-finger attribution.
+    Scans mjData.contact for contacts between any robot finger geom and the cube.
+    Returns per-finger contact information:
+        contacts[finger] = {"pos": np.ndarray, "force": float}
+    손가락의 여러 링크가 큐브에 닿는 경우 수직 항력을 합산합니다.
     """
-    body_to_finger = {
-        "part_1_4": "right_finger_motor",
-        "part_1_8": "front_finger_motor",
-        "part_1_12": "left_finger_motor",
-        "part_1_16": "back_finger_motor",
-    }
-
     contacts: dict[str, dict] = {}
 
     for i in range(data.ncon):
@@ -123,7 +148,7 @@ def get_finger_contacts(
             body_id = model.geom_bodyid[other_geom]
             body_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)
 
-            finger = body_to_finger.get(body_name)
+            finger = BODY_TO_FINGER.get(body_name)
             if finger is None:
                 continue
 
@@ -132,9 +157,13 @@ def get_finger_contacts(
             # contact normal force magnitude (first element of 6D contact force)
             force6 = np.zeros(6, dtype=np.float64)
             mujoco.mj_contactForce(model, data, i, force6)
-            normal_force = abs(force6[0])
+            normal_force = abs(float(force6[0]))
 
-            contacts[finger] = {"pos": pos, "force": normal_force}
+            if finger in contacts:
+                # 동일 손가락의 여러 링크가 접촉한 경우 힘 합산 및 위치 유지
+                contacts[finger]["force"] += normal_force
+            else:
+                contacts[finger] = {"pos": pos, "force": normal_force}
 
     return contacts
 
@@ -144,12 +173,24 @@ def get_finger_contacts(
 # ---------------------------------------------------------------------------
 
 def compute_r_grip(contacts: dict[str, dict], cfg: RewardConfig) -> float:
-    """R_grip = exp(-|F_t - F_target| / sigma_F), F_t = mean contact force."""
+    """
+    R_grip: 파지력 보상 (0.0 ~ 1.0).
+    - 접촉이 전혀 없으면 0.0 (허위 보상 방지).
+    - 목표 힘 F_target(예: 6.0N)까지 힘이 강해질수록 보상이 선형 증가.
+    - F_target ~ max_safe_force(예: 15.0N) 안정 파지 구간에서는 최대 보상 1.0 유지 (강한 파지 장려).
+    - max_safe_force 초과 시에만 감쇠.
+    """
     if not contacts:
-        f_t = 0.0
+        return 0.0
+
+    f_t = float(np.mean([c["force"] for c in contacts.values()]))
+
+    if f_t <= cfg.target_force:
+        return float(np.clip(f_t / max(cfg.target_force, 1e-6), 0.0, 1.0))
+    elif f_t <= cfg.max_safe_force:
+        return 1.0
     else:
-        f_t = float(np.mean([c["force"] for c in contacts.values()]))
-    return float(np.exp(-abs(f_t - cfg.target_force) / cfg.sigma_f))
+        return float(np.exp(-(f_t - cfg.max_safe_force) / cfg.sigma_f))
 
 
 def compute_r_contact(contacts: dict[str, dict]) -> float:
@@ -157,9 +198,20 @@ def compute_r_contact(contacts: dict[str, dict]) -> float:
     return len(contacts) / N_FINGER
 
 
+def compute_r_full_hold(contacts: dict[str, dict], cfg: RewardConfig) -> float:
+    """
+    R_full_hold: 4지 동시 고정 보너스.
+    4개 손가락이 모두 큐브에 닿고, 각각 min_hold_force(1.5N) 이상으로 쥘 때 1.0 반환.
+    """
+    if len(contacts) < N_FINGER:
+        return 0.0
+    if all(c["force"] >= cfg.min_hold_force for c in contacts.values()):
+        return 1.0
+    return 0.0
+
+
 def compute_p_slip(contacts: dict[str, dict], state: RewardState) -> float:
-    """P_slip = sum_i ||delta_p_i_relative|| over fingers in contact both
-    this step and last step."""
+    """P_slip = sum_i ||delta_p_i_relative|| over fingers in contact both this step and last step."""
     total = 0.0
     for finger, c in contacts.items():
         prev = state.prev_contact_points.get(finger)
@@ -168,14 +220,21 @@ def compute_p_slip(contacts: dict[str, dict], state: RewardState) -> float:
     return total
 
 
-def compute_p_energy(actions: np.ndarray) -> float:
-    """P_energy = sum_i |a_i,t|."""
-    return float(np.sum(np.abs(actions)))
+def compute_p_smooth(actions: np.ndarray, state: RewardState) -> float:
+    """
+    P_smooth = sum_i (a_i,t - a_i,t-1)^2.
+    행동 크기 자체를 억제하여 손을 펴게 만들던 P_energy 대신,
+    행동의 급격한 떨림/변화율(Jerk)을 억제하여 일정한 파지력을 지속 유지하도록 유도.
+    """
+    if state.prev_actions is None:
+        return 0.0
+    return float(np.sum((actions - state.prev_actions) ** 2))
 
 
 def compute_p_switch(actions: np.ndarray, state: RewardState) -> float:
-    """P_switch = number of fingers that crossed the open/close threshold
-    since the previous step."""
+    """
+    P_switch = number of fingers that crossed the open/close threshold since the previous step.
+    """
     if state.prev_actions is None:
         return 0.0
     cur_closed = actions > SWITCH_THRESHOLD
@@ -199,10 +258,9 @@ def compute_reward(
 
     Args:
         model, data: mujoco model/data.
-        actions: array of shape (N_FINGER,), the ctrl just applied
-                 (order must match FINGER_MOTORS).
+        actions: array of shape (N_FINGER,), the ctrl just applied (order must match FINGER_MOTORS).
         cfg: weights + target force config.
-        state: RewardState carried from the previous step (mutated/returned).
+        state: RewardState carried from the previous step.
 
     Returns:
         (total_reward, breakdown_dict, new_state)
@@ -212,17 +270,19 @@ def compute_reward(
 
     r_grip = compute_r_grip(contacts, cfg)
     r_contact = compute_r_contact(contacts)
+    r_full_hold = compute_r_full_hold(contacts, cfg)
     p_slip = compute_p_slip(contacts, state)
-    p_energy = compute_p_energy(actions)
+    p_smooth = compute_p_smooth(actions, state)
     p_switch = compute_p_switch(actions, state)
 
     w = cfg.weights
     total = (
-        w.w1 * r_grip
-        + w.w2 * r_contact
-        - w.w3 * p_slip
-        - w.w4 * p_energy
-        - w.w5 * p_switch
+        w.w_grip * r_grip
+        + w.w_contact * r_contact
+        + w.w_hold * r_full_hold
+        - w.w_slip * p_slip
+        - w.w_smooth * p_smooth
+        - w.w_switch * p_switch
     )
 
     new_state = RewardState(
@@ -230,12 +290,18 @@ def compute_reward(
         prev_contact_points={f: c["pos"] for f, c in contacts.items()},
     )
 
+    mean_force = float(np.mean([c["force"] for c in contacts.values()])) if contacts else 0.0
     breakdown = {
         "R_grip": r_grip,
         "R_contact": r_contact,
+        "R_full_hold": r_full_hold,
         "P_slip": p_slip,
-        "P_energy": p_energy,
+        "P_energy": p_smooth,   # 하위 호환용 키 유지
+        "P_smooth": p_smooth,
         "P_switch": p_switch,
         "R_total": total,
+        "mean_force": mean_force,
+        "n_contacts": len(contacts),
+        "is_holding": bool(r_full_hold > 0.5),
     }
     return total, breakdown, new_state
