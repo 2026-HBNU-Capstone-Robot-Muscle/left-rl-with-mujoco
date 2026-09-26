@@ -13,8 +13,8 @@ from core import Fault, observation, action_targets, states_by_id, finite, valid
 from run import Policy, inspect_policy
 
 ROOT=Path(__file__).resolve().parent
-PERIOD=.1
-AGE=.1
+PERIOD=.03
+AGE=.03
 INITIAL_TOLERANCE_TICK=10
 
 
@@ -131,12 +131,12 @@ def main():
               'period_s':PERIOD,'seconds':args.seconds,'provisional':True,'requested_position_p':args.position_p,'requested_position_i':args.position_i,'effective_position_i':effective_i,
               'position_compensation_max_tick':args.position_compensation,'compensation_rate_cap_tick_s':40,
               'initial_move':{'enabled':args.execute,'p_gain':500,'profile_velocity':20,'profile_acceleration':10,'tolerance_tick':INITIAL_TOLERANCE_TICK,'settle_s':.3,'timeout_s':15},
-              'timing_note':'100ms hardware trial; not equivalent to 2ms training period',
+              'timing_note':'30ms hardware trial; not equivalent to 2ms training period',
               'current_cap_ma':700,'software_speed_stop':None,'software_timed_stall_stop':None,
               'profile_velocity_raw':args.profile_velocity,'profile_acceleration_raw':args.profile_acceleration,
               'command_mode':'absolute-policy-position','max_step_tick':None,
               'smoothing_tau_s':0,'instant_tracking_error_stop':False,'temperature_stop_source':'device Temperature Limit(31) minus 1C',
-              'fidelity_note':'Provisional position mapping; user-adjustable hardware profile, provisional tuning; 100ms period and hardware servo response still differ from simulation.'})
+              'fidelity_note':'Provisional position mapping; user-adjustable hardware profile, provisional tuning; 30ms period and hardware servo response still differ from simulation.'})
         try:
             bus=Bus('COM8',1000000)
             inv=bus.inventory(); emit({'type':'inventory','motors':inv}); preflight(inv)

@@ -1,8 +1,8 @@
 {
   "port": "COM8",
   "baud": 1000000,
-  "period_s": 0.1,
-  "max_age_s": 0.1,
+  "period_s": 0.03,
+  "max_age_s": 0.03,
   "mapping_verified": false,
   "timing_verified": false,
   "stop_verified": false,
