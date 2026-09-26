@@ -1,4 +1,4 @@
-"""MuJoCo finger robot environment definitions."""
+"""MuJoCo finger robot environment definitions with 30ms control period (Frame Skip)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 from gymnasium import spaces
-from stable_baselines3.common.monitor import Monitor
 
 from reward_function import RewardConfig, RewardState, compute_reward
 
@@ -35,17 +34,22 @@ FINGER_TENDON_NAMES = (
     "back_finger_tendon",
 )
 
+# 30ms 제어 주기 (실기 환경 명목 주기 30ms와 동일)
+DEFAULT_CONTROL_PERIOD_S = 0.030
+
 
 class FingerRobotEnv(gym.Env):
-    """A task for closing and holding an object with the four tendon-driven fingers."""
+    """A task for closing and holding an object with the four tendon-driven fingers at 30ms control rate."""
 
-    metadata = {"render_modes": ["human"], "render_fps": 60}
+    metadata = {"render_modes": ["human"], "render_fps": 33}
 
     def __init__(
         self,
         model_path: str | Path = DEFAULT_MODEL,
         render_mode: str | None = None,
-        max_steps: int = 1000,
+        control_period_s: float = DEFAULT_CONTROL_PERIOD_S,
+        max_steps: int = 150,  # 150 steps * 30ms = 4.5초 에피소드
+        action_smoothing: float = 0.5,  # 저역통과 필터(EMA) 계수 (0~1, 1이면 미적용)
     ):
         self.model_path = Path(model_path).resolve()
         self.render_mode = render_mode
@@ -53,9 +57,18 @@ class FingerRobotEnv(gym.Env):
         self.model = mujoco.MjModel.from_xml_path(str(self.model_path))
         self.data = mujoco.MjData(self.model)
 
+        self.control_period_s = control_period_s
+        # 물리 타임스텝(기본 2ms) 기준 30ms 제어를 위한 sub-steps 계산 (30ms / 2ms = 15)
+        self.frame_skip = max(1, int(round(self.control_period_s / self.model.opt.timestep)))
+        self.dt = self.model.opt.timestep * self.frame_skip
+
         self.max_steps = max_steps
         self.step_count = 0
         self.viewer = None
+        self._last_render_time = None
+
+        self.action_smoothing = action_smoothing
+        self.smooth_action: np.ndarray | None = None
 
         self.reward_cfg = RewardConfig()
         self.reward_state = RewardState()
@@ -134,23 +147,35 @@ class FingerRobotEnv(gym.Env):
         mujoco.mj_forward(self.model, self.data)
 
         self.step_count = 0
+        self.smooth_action = None
         self.reward_state = RewardState()
         return self._get_obs(), {"finger_progress": self._finger_progress()}
 
     def step(self, action: np.ndarray):
         action = np.asarray(action, dtype=np.float32)
-
         clipped_action = np.clip(action, self.action_space.low, self.action_space.high)
+
+        # 액션 스무딩 필터: 고주파 떨림(Chattering) 차단
+        if self.smooth_action is None:
+            self.smooth_action = clipped_action.copy()
+        else:
+            self.smooth_action = (
+                (1.0 - self.action_smoothing) * self.smooth_action
+                + self.action_smoothing * clipped_action
+            )
 
         # Rescale the normalized [-1, 1] action to each motor's physical
         # ctrlrange (target tendon length). Actuators are position servos
         # now, so ctrl is a target position, not a torque.
         ctrl_low = self.model.actuator_ctrlrange[:, 0]
         ctrl_high = self.model.actuator_ctrlrange[:, 1]
-        target_position = ctrl_low + (clipped_action + 1.0) * 0.5 * (ctrl_high - ctrl_low)
+        # 스무딩 필터 적용
+        target_position = ctrl_low + (self.smooth_action + 1.0) * 0.5 * (ctrl_high - ctrl_low)
 
         self.data.ctrl[:] = target_position
-        mujoco.mj_step(self.model, self.data, nstep=1)
+
+        # 30ms 동안 물리 시뮬레이션 전진 (Frame Skip 15 sub-steps)
+        mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
         self.step_count += 1
 
         progress = self._finger_progress()
@@ -158,7 +183,7 @@ class FingerRobotEnv(gym.Env):
         reward, reward_breakdown, self.reward_state = compute_reward(
             self.model,
             self.data,
-            clipped_action.astype(np.float64),  # normalized action; same [-1, 1] semantics reward_function.py expects
+            self.smooth_action.astype(np.float64),
             self.reward_cfg,
             self.reward_state,
         )
@@ -188,11 +213,10 @@ class FingerRobotEnv(gym.Env):
 
         self.viewer.sync()
 
-        # wall-clock과 sim time을 맞춰서 실시간(1x)으로 재생
-        dt = self.model.opt.timestep
+        # wall-clock과 sim time을 맞춰서 실시간(1x) 30ms 주기로 재생
         elapsed = time.time() - self._last_render_time
-        if elapsed < dt:
-            time.sleep(dt - elapsed)
+        if elapsed < self.dt:
+            time.sleep(self.dt - elapsed)
         self._last_render_time = time.time()
 
     def close(self) -> None:
@@ -204,6 +228,14 @@ class FingerRobotEnv(gym.Env):
 def make_env(
     model_path: Path | str,
     render_mode: str | None = None,
-    max_steps: int = 1000,
+    control_period_s: float = DEFAULT_CONTROL_PERIOD_S,
+    max_steps: int = 150,
+    action_smoothing: float = 0.5,
 ):
-    return FingerRobotEnv(model_path=model_path, render_mode=render_mode, max_steps=max_steps)
+    return FingerRobotEnv(
+        model_path=model_path,
+        render_mode=render_mode,
+        control_period_s=control_period_s,
+        max_steps=max_steps,
+        action_smoothing=action_smoothing,
+    )

@@ -49,8 +49,8 @@ class RewardWeights:
     w_contact: float = 1.0    # R_contact: 접촉 손가락 비율 보상
     w_hold: float = 3.0       # R_full_hold: 4지 동시 안정 파지 보너스
     w_slip: float = 0.5       # P_slip: 접촉점 미끄러짐 억제
-    w_smooth: float = 0.05    # P_smooth: 행동 급변(Jerk) 억제
-    w_switch: float = 0.05    # P_switch: 열림/닫힘 떨림 억제
+    w_smooth: float = 0.1     # P_smooth: 행동 급변(Jerk) 억제
+    w_switch: float = 0.5    # P_switch: 열림/닫힘 떨림 억제
 
     # 하위 호환용 속성
     @property
@@ -77,7 +77,7 @@ class RewardWeights:
 @dataclass
 class RewardConfig:
     target_force: float = 6.0     # F_target: 큐브를 단단히 고정하기 위한 목표 파지력 (N)
-    min_hold_force: float = 1.5   # 4지 동시 고정 판정을 위한 최소 개별 손가락 힘 (N)
+    min_hold_force: float = 2.0   # 4지 동시 고정 판정을 위한 최소 개별 손가락 힘 (N)
     max_safe_force: float = 15.0  # 과도한 힘 제한 기준 (N)
     sigma_f: float = 2.0          # 초과 힘 감쇠 계수
     weights: RewardWeights = field(default_factory=RewardWeights)
