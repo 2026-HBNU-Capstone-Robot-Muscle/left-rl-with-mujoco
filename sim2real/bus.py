@@ -18,38 +18,8 @@ def dxl_crc(data: bytes) -> int:
             crc = ((crc << 1) ^ 0x8005) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
     return crc
 
+
 def dxl_stuff(body: bytes) -> bytes:
-    """데이터 안의 헤더 모양이 실제 헤더로 오인되지 않도록 바이트 추가"""
-    result = bytearray()
-    for value in body:
-        result.append(value)
-        if result[-3:] == b"\xFF\xFF\xFD":
-            result.append(0xFD)
-    return bytes(result)
-
-def dxl_request(
-    port: serial.Serial,
-    device_id: int,
-    instruction: int,
-    params: bytes = b"",
-    expect_reply: bool = True,
-) -> bytes:
-    """XL330 명령을 전송하고 필요한 경우 응답을 기다린다."""
-    # 이전에 남은 수신 데이터를 지워 현재 명령의 응답만 읽는다.
-    port.reset_input_buffer()
-    port.write(dxl_packet(device_id, instruction, params))
-    port.flush()
-    return dxl_status(port, device_id) if expect_reply else b""
-
-
-def dxl_read(port: serial.Serial, device_id: int, address: int, size: int) -> bytes:
-    """XL330 제어 테이블의 값을 읽는다."""
-    data = dxl_request(port, device_id, 0x02, struct.pack("<HH", address, size))
-    if len(data) != size:
-        raise BusError("XL330 READ 길이 오류")
-    return data
-
-
     """데이터 안의 헤더 모양이 실제 헤더로 오인되지 않게 바이트를 추가한다."""
     result = bytearray()
     for value in body:
@@ -117,6 +87,29 @@ def dxl_status(port: serial.Serial, expected_id: int) -> bytes:
     if body[1]:
         raise BusError(f"XL330 ID {device_id} 장치 오류: 0x{body[1]:02X}")
     return body[2:]
+
+
+def dxl_request(
+    port: serial.Serial,
+    device_id: int,
+    instruction: int,
+    params: bytes = b"",
+    expect_reply: bool = True,
+) -> bytes:
+    """XL330 명령을 전송하고 필요한 경우 응답을 기다린다."""
+    # 이전에 남은 수신 데이터를 지워 현재 명령의 응답만 읽는다.
+    port.reset_input_buffer()
+    port.write(dxl_packet(device_id, instruction, params))
+    port.flush()
+    return dxl_status(port, device_id) if expect_reply else b""
+
+
+def dxl_read(port: serial.Serial, device_id: int, address: int, size: int) -> bytes:
+    """XL330 제어 테이블의 값을 읽는다."""
+    data = dxl_request(port, device_id, 0x02, struct.pack("<HH", address, size))
+    if len(data) != size:
+        raise BusError("XL330 READ 길이 오류")
+    return data
 
 
 def dxl_write(port: serial.Serial, device_id: int, address: int, data: bytes) -> None:
@@ -265,7 +258,8 @@ class Bus:
             values[i] = int.from_bytes(raw, 'little')
         return values
 
-    def command_sync(self, positions, rows, max_age):
+    def command_sync(self, positions, rows, max_age, deferred=False):
+        if getattr(self, '_pending_goal', None) is not None: raise Fault('Previous goal unconfirmed')
         # Validate every target before any goal write. Broadcast addresses only IDs 1..4.
         if set(positions) != {1,2,3,4} or len(rows) != 4 or {r['id'] for r in rows} != {1,2,3,4}:
             raise Fault('Incomplete four-motor command/state')
@@ -276,7 +270,7 @@ class Bus:
             if time.monotonic() - oldest > max_age:
                 raise Fault('Stale state before sync write')
         fresh()
-        errors = self.read_register_sync(70, 1)
+        errors = {r['id']:r.get('hardware_error', -1) for r in rows} if deferred else self.read_register_sync(70, 1)
         if any(errors.values()):
             raise Fault(f'Hardware error before sync write: {errors}')
         fresh()
@@ -285,21 +279,27 @@ class Bus:
         if self.port.write(packet) != len(packet):
             raise Fault('Incomplete sync goal write; partial delivery possible')
         self.port.flush()
+        if deferred:
+            self._pending_goal=dict(positions)
+            self._pending_since=time.perf_counter()
+            return
         # Sync WRITE has no acknowledgement; verify all goal registers explicitly.
         if self.read_register_sync(116, 4) != positions:
             raise Fault('Sync goal readback mismatch')
 
-    def read_diagnostic(self):
+    def read_diagnostic(self, combined=False):
         """Read goal, trajectory, feedback and output in one Sync Read."""
         start=time.monotonic()
         self.port.reset_input_buffer()
-        packet=dxl_packet(254,0x82,struct.pack('<HH',116,31)+bytes([1,2,3,4]))
+        packet=dxl_packet(254,0x82,struct.pack('<HH',70 if combined else 116,77 if combined else 31)+bytes([1,2,3,4]))
         if self.port.write(packet)!=len(packet): raise Fault('Incomplete diagnostic read')
         self.port.flush()
         rows=[]
         for i in range(1,5):
             raw=dxl_status(self.port,i)
-            if len(raw)!=31: raise Fault('Diagnostic response length mismatch')
+            if len(raw)!=(77 if combined else 31): raise Fault('Diagnostic response length mismatch')
+            hardware_error=raw[0] if combined else None
+            if combined: raw=raw[46:]
             goal=struct.unpack_from('<i',raw,0)[0]
             pwm,current,velocity,position,veltraj,postraj=struct.unpack_from('<hhiiii',raw,8)
             rows.append({'id':i,'sample_start_s':start,'read_end_s':time.monotonic(),
@@ -310,7 +310,22 @@ class Bus:
                 'present_pwm_raw':pwm,'input_voltage_v':struct.unpack_from('<H',raw,28)[0]*.1,
                 'moving_status_raw':raw[7],'profile_ongoing':bool(raw[7]&2),
                 'goal_error_tick':goal-position,'trajectory_error_tick':postraj-position})
+            if combined:
+                rows[-1]['hardware_error']=hardware_error
+                if hardware_error: raise Fault(f'ID {i}: hardware error {hardware_error}')
         return rows
+
+    def confirm_pending(self, rows, max_age):
+        pending=getattr(self, '_pending_goal', None)
+        if pending is None: return None
+        if len(rows)!=4 or {r['id'] for r in rows}!={1,2,3,4}: raise Fault('Incomplete confirmation')
+        if any(time.monotonic()-r['sample_start_s']>max_age for r in rows): raise Fault('Stale confirmation')
+        if any(r.get('hardware_error', -1)!=0 for r in rows): raise Fault('Hardware error in confirmation')
+        if {r['id']:r['goal_position_tick'] for r in rows}!=pending: raise Fault('Deferred goal mismatch')
+        latency=time.perf_counter()-self._pending_since
+        if latency>max_age: raise Fault('Confirmation deadline exceeded')
+        self._pending_goal=None
+        return latency*1000
 
     def prepare_hold(self, i, reference):
         """Refresh initial hold only with torque OFF; never retry a live goal."""
