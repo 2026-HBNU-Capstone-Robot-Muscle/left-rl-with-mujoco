@@ -13,8 +13,9 @@ from core import Fault, observation, action_targets, states_by_id, finite, valid
 from run import Policy, inspect_policy
 
 ROOT=Path(__file__).resolve().parent
-PERIOD=.03
-AGE=.03
+PERIOD=.1
+SENSOR_PERIOD=.02
+AGE=.1
 INITIAL_TOLERANCE_TICK=10
 
 
@@ -112,31 +113,37 @@ def main():
     p.add_argument('--profile-velocity',type=int,choices=range(0,32768),metavar='0..32767',default=80,help='Motor profile velocity; 0 disables shaping')
     p.add_argument('--profile-acceleration',type=int,choices=range(0,32768),metavar='0..32767',default=30,help='Motor profile acceleration; 0 disables shaping')
     p.add_argument('--seconds',type=float,default=10.)
+    p.add_argument('--policy-period-ms',type=int,choices=[30,100],default=30,help='Policy execution period; current model trained at 30ms')
     args=p.parse_args()
     if not math.isfinite(args.seconds) or not 0<args.seconds<=30:
         p.error('seconds must be >0 and <=30')
     if args.position_compensation and args.position_i not in (None,0):
         p.error('Position compensation requires --position-i 0; disable compensation to test motor I')
     effective_i=0 if args.position_compensation else args.position_i
-    cfg=json.loads((ROOT/'config.provisional.json').read_text(encoding='utf-8'))
+    cfg=json.loads((ROOT/'config.v5.json').read_text(encoding='utf-8'))
     validate(cfg,policy=True,allow_provisional=True)
-    path=ROOT.parents[1]/'ppo_train'/'finger_robot_ppo_best.zip'
+    period=args.policy_period_ms/1000.
+    sensor_period=period if args.policy_period_ms==30 else SENSOR_PERIOD
+    cfg['period_s']=period
+    path=ROOT.parents[1]/'ppo_model'/cfg['policy']['filename']
     policy=Policy(path,cfg)
     logpath=ROOT/'logs'/(datetime.now().strftime('%Y%m%d_%H%M%S_%f')+'_apply_policy.jsonl')
     logpath.parent.mkdir(exist_ok=True)
     bus=None; code=0; rows=None; gain_restore={}; i_restore={}; profile_restore={}; last_commands=None
     with logpath.open('x',encoding='utf-8') as log:
-        def emit(x): log.write(json.dumps(x,allow_nan=False)+'\n'); log.flush()
+        def emit(x):
+            log.write(json.dumps(x,allow_nan=False)+'\n')
+            if x.get('type') in ('fault','stop','metadata'): log.flush()
         emit({'type':'metadata','execute':args.execute,'config':cfg,'policy':inspect_policy(path),
-              'period_s':PERIOD,'seconds':args.seconds,'provisional':True,'requested_position_p':args.position_p,'requested_position_i':args.position_i,'effective_position_i':effective_i,
+              'period_s':period,'seconds':args.seconds,'provisional':True,'requested_position_p':args.position_p,'requested_position_i':args.position_i,'effective_position_i':effective_i,
               'position_compensation_max_tick':args.position_compensation,'compensation_rate_cap_tick_s':40,
               'initial_move':{'enabled':args.execute,'p_gain':500,'profile_velocity':20,'profile_acceleration':10,'tolerance_tick':INITIAL_TOLERANCE_TICK,'settle_s':.3,'timeout_s':15},
-              'timing_note':'30ms hardware trial; not equivalent to 2ms training period',
+              'timing_note':f'{args.policy_period_ms}ms execution; selected 30ms model',
               'current_cap_ma':700,'software_speed_stop':None,'software_timed_stall_stop':None,
               'profile_velocity_raw':args.profile_velocity,'profile_acceleration_raw':args.profile_acceleration,
               'command_mode':'absolute-policy-position','max_step_tick':None,
               'smoothing_tau_s':0,'instant_tracking_error_stop':False,'temperature_stop_source':'device Temperature Limit(31) minus 1C',
-              'fidelity_note':'Provisional position mapping; user-adjustable hardware profile, provisional tuning; 30ms period and hardware servo response still differ from simulation.'})
+              'fidelity_note':'Provisional position mapping; user-adjustable hardware profile, provisional tuning; execution timing and hardware servo response require verification.'})
         try:
             bus=Bus('COM8',1000000)
             inv=bus.inventory(); emit({'type':'inventory','motors':inv}); preflight(inv)
@@ -187,42 +194,95 @@ def main():
                 guard=Guard(cfg,rows,inv); guard.check(rows)
                 emit({'type':'policy_start','rows':rows})
                 print('Initial pose confirmed. Starting policy.')
+            smoothing=float(cfg['policy'].get('action_smoothing',1.))
+            if not math.isfinite(smoothing) or not 0<smoothing<=1: raise Fault('Invalid action smoothing')
+            smooth_action=None
             compensation=PositionCompensation(cfg,args.position_compensation)
             began=time.perf_counter(); next_policy=began; cycles=0; last_update=None
-            while time.perf_counter()-began<args.seconds:
-                rows=bus.read_diagnostic(); guard.check(rows)
+            previous_cycle_start=None; next_sensor=began; timing_rows=[]; skipped_policy_slots=0
+            while time.perf_counter()-began<args.seconds or getattr(bus,'_pending_goal',None) is not None:
+                remaining=next_sensor-time.perf_counter()
+                if remaining>0: time.sleep(remaining)
+                cycle_started=time.perf_counter()
+                lateness=max(0.,cycle_started-next_sensor)
+                if lateness>AGE: raise Fault('Sensor scheduling deadline exceeded')
+                interval=None if previous_cycle_start is None else cycle_started-previous_cycle_start
+                previous_cycle_start=cycle_started
+                rows=bus.read_diagnostic(combined=True)
+                read_finished=time.perf_counter(); guard.check(rows)
+                confirmation=bus.confirm_pending(rows,AGE)
                 if last_commands is not None:
-                    emit({'type':'tracking','error_tick':{r['id']:last_commands[r['id']]-r['position_tick'] for r in rows},
-                          'rows':rows})
+                    emit({'type':'tracking','error_tick':{r['id']:last_commands[r['id']]-r['position_tick'] for r in rows},'rows':rows})
                 now=time.perf_counter()
-                if now-next_policy>AGE: raise Fault('Policy scheduling deadline exceeded')
-                if now>=next_policy:
+                policy_due=now>=next_policy and now-began<args.seconds
+                inference_ms=0.; write_ms=0.; policy_interval_ms=None
+                if policy_due:
+                    if now-next_policy>AGE: raise Fault('Policy scheduling deadline exceeded')
                     started=time.perf_counter()
                     obs=observation(cfg,rows,time.monotonic(),allow_provisional=True)
-                    action=policy.predict(obs); raw=action_targets(cfg,action)
+                    action=policy.predict(obs)
+                    # Match the training environment: clip, then EMA, then scale.
+                    if len(action)!=4: raise Fault('Expected four actions')
+                    clipped=[max(-1.,min(1.,finite(v))) for v in action]
+                    smooth_action=(clipped.copy() if smooth_action is None else
+                                   [(1-smoothing)*previous+smoothing*current
+                                    for previous,current in zip(smooth_action,clipped)])
+                    raw=action_targets(cfg,smooth_action)
                     guard.check(rows)
                     policy_goals=guard.targets(raw)
-                    dt=PERIOD if last_update is None else now-last_update
+                    policy_interval_ms=None if last_update is None else (now-last_update)*1000
+                    dt=period if last_update is None else now-last_update
                     commands=compensation.command(policy_goals,rows,time.monotonic(),dt)
                     last_update=now
                     emit({'type':'policy','cycle':cycles,'rows':rows,'obs':obs,'action':action,
+                          'smoothed_action':list(smooth_action),'action_smoothing':smoothing,
                           'raw_targets_tick':raw,'policy_goal_tick':policy_goals,'limited_targets_tick':commands,
                           'compensation_tick':dict(compensation.offset),
                           'goal_adjustment_tick':{i:commands[i]-raw[i] for i in commands},
                           'outside_initial_reference':[m['id'] for m in cfg['motors'] if next(r['position_tick'] for r in rows if r['id']==m['id'])>m['initial_position_tick']],
                           'inference_ms':(time.perf_counter()-started)*1000})
+                    write_started=time.perf_counter()
                     if args.execute:
                         emit({'type':'command_attempt','targets':commands})
-                        bus.command_sync(commands,rows,AGE)
+                        bus.command_sync(commands,rows,AGE,deferred=True)
                         last_commands=dict(commands)
-                    elapsed=time.perf_counter()-started
-                    emit({'type':'cycle_end','cycle':cycles,'commands_sent':args.execute,'elapsed_ms':elapsed*1000})
-                    print('cycle',cycles,'targets',commands,'sent',args.execute)
-                    if elapsed>PERIOD: raise Fault('Read/inference/write deadline exceeded')
-                    cycles+=1; next_policy=now+PERIOD
-                else:
-                    emit({'type':'monitor','rows':rows})
-                time.sleep(.005)
+                    write_ms=(time.perf_counter()-write_started)*1000
+                    inference_ms=(write_started-started)*1000
+                    cycles+=1; next_policy+=period
+                    if next_policy<time.perf_counter():
+                        skipped=math.floor((time.perf_counter()-next_policy)/period)+1
+                        skipped_policy_slots+=skipped
+                        next_policy+=skipped*period
+                total=(time.perf_counter()-cycle_started)*1000
+                metric={'type':'io_timing','policy_cycle':policy_due,'cycle_start_s':cycle_started,
+                        'policy_interval_ms':policy_interval_ms,
+                        'read_ms':(read_finished-cycle_started)*1000,'inference_transform_ms':inference_ms,
+                        'write_ms':write_ms,'total_ms':total,'over_30ms':total>30,
+                        'confirmation_ms':confirmation,
+                        'sensor_interval_ms':None if interval is None else interval*1000,
+                        'schedule_lateness_ms':lateness*1000}
+                metric['console_ms']=None
+                if policy_due:
+                    console_started=time.perf_counter()
+                    actual=dict(sorted((r['id'],r['position_tick']) for r in rows))
+                    display_targets=dict(sorted(commands.items()))
+                    print(f"cycle {cycles-1} | target {display_targets} | actual {actual} | "
+                          f"read-to-send {total:.2f}ms | sent {args.execute}",flush=True)
+                    metric['console_ms']=(time.perf_counter()-console_started)*1000
+                metric['total_with_console_ms']=(time.perf_counter()-cycle_started)*1000
+                emit(metric); timing_rows.append(metric)
+                if total>AGE*1000: raise Fault('IO deadline exceeded (100ms)')
+                next_sensor+=sensor_period
+                if next_sensor<time.perf_counter():
+                    next_sensor+=(math.floor((time.perf_counter()-next_sensor)/sensor_period)+1)*sensor_period
+            def stats(key):
+                values=[r[key] for r in timing_rows if r[key] is not None]
+                return {'count':len(values),'mean_ms':sum(values)/len(values),'max_ms':max(values),
+                        'over_30ms':sum(v>30 for v in values)} if values else None
+            summary={'type':'timing_summary','sensor_target_ms':sensor_period*1000,'policy_target_ms':args.policy_period_ms,
+                     'policy_updates':cycles,'skipped_policy_slots':skipped_policy_slots,
+                     **{key:stats(key) for key in ['read_ms','total_ms','console_ms','total_with_console_ms','confirmation_ms','sensor_interval_ms','policy_interval_ms']}}
+            emit(summary); print('TIMING:',json.dumps(summary)); log.flush()
         except BaseException as exc:
             code=1; print('STOP:',type(exc).__name__,str(exc))
             try: emit({'type':'fault','error':str(exc),'last_acquired_rows':rows})
