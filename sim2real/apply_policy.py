@@ -120,7 +120,7 @@ def main():
     if args.position_compensation and args.position_i not in (None,0):
         p.error('Position compensation requires --position-i 0; disable compensation to test motor I')
     effective_i=0 if args.position_compensation else args.position_i
-    cfg=json.loads((ROOT/'config.v5.json').read_text(encoding='utf-8'))
+    cfg=json.loads((ROOT/'config.provisional.json').read_text(encoding='utf-8'))
     validate(cfg,policy=True,allow_provisional=True)
     period=args.policy_period_ms/1000.
     sensor_period=period if args.policy_period_ms==30 else SENSOR_PERIOD
