@@ -2,13 +2,12 @@
 
 학습된 PPO 모델을 DYNAMIXEL 모터 4개에 연결하는 코드입니다. 모터의 실제 위치·속도를 입력으로 정책을 추론하고, 출력된 목표 위치를 모터 명령으로 변환합니다.
 
-## 파일 구존
+## 파일 구조 트리
 
 ```text
 sim2real/
    ├─ README.md
    ├─ finger_robot_ppo_best.zip # 학습된 PPO 정책 모델
-   ├─ requirements.txt         # Python 패키지 목록
    ├─ apply_policy.py          # 초기 이동 및 실기 실행
    ├─ bus.py                   # DYNAMIXEL 통신
    ├─ core.py                  # 정책·모터 좌표 변환과 유효성 검사
