@@ -90,7 +90,7 @@ class Tests(unittest.TestCase):
 
 class AdapterTests(unittest.TestCase):
     def test_real_model_and_feedback_without_port(self):
-        root=Path(__file__).resolve().parent
+        root=Path(__file__).resolve().parent.parent
         cfg=json.loads((root/'config.provisional.json').read_text())
         cal=dict(verified=True,min_tick=50,max_tick=4000,cw_sign=-1,quarter_ticks=1024,tolerance=5,
                  grasp_ticks={str(m['id']):[m['provisional_close_tick'],m['initial_position_tick']-20]
@@ -116,7 +116,7 @@ class AdapterTests(unittest.TestCase):
             expected={m['id']:m['initial_position_tick'] for m in cfg['motors']}
             self.assertEqual(h.bus.command_sync.call_args.args[0],expected)
     def test_provisional_calibration_requires_explicit_opt_in(self):
-        root=Path(__file__).resolve().parent
+        root=Path(__file__).resolve().parent.parent
         cfg=json.loads((root/'config.provisional.json').read_text(encoding='utf-8'))
         cal=dict(verified=False,provisional_confirmed_for_test=True,min_tick=352,max_tick=2400,
                  cw_sign=-1,quarter_ticks=1024,tolerance=10,reference_tick=2400,

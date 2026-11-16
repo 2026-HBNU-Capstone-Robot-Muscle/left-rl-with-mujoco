@@ -16,7 +16,8 @@
        ├─ core.py                    # 정책·모터 좌표 변환
        ├─ run.py                     # 모델 로딩·해시 확인
        ├─ position_compensation.py   # 실제 위치 오차 보정
-       └─ config.provisional.json    # 모터 매핑·위치 기준
+       ├─ config.provisional.json    # 모터 매핑·위치 기준
+       └─ test/                     # 모터 출력 없는 테스트
 
 ## 제어 구조
 
