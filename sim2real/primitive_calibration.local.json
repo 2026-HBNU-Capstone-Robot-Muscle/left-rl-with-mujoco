@@ -1,0 +1,40 @@
+{
+  "verified": false,
+  "cw_sign": -1,
+  "quarter_ticks": 1024,
+  "min_tick": 352,
+  "max_tick": 3538,
+  "tolerance": 10,
+  "grasp_ticks": {
+    "1": [
+      702,
+      901
+    ],
+    "2": [
+      1997,
+      2428
+    ],
+    "3": [
+      1697,
+      1778
+    ],
+    "4": [
+      1697,
+      1855
+    ]
+  },
+  "reference_tick": 2400,
+  "reference_note": "Wrist reference 2400 tick, CW sign -1 and 1024 ticks per nominal 90 degrees. User confirmed physical clearance to 3538 ticks for a 100-degree counterclockwise wrist command; clockwise clearance to 352 ticks was previously confirmed.",
+  "provisional_confirmed_for_test": true,
+  "grasp_note": "Provisional grasp window updated from the latest 30-second timeout: actual positions ID1=736, ID2=2104, ID3=1748, ID4=1746. ID3 upper edge is 1748+30=1778 because the previous upper edge 1739 rejected the stable feedback. ID3 still tracked 48 ticks above its 1700 target. Motor encoder positions alone do not verify cube contact or holding force. ID2 lower bound is 1997 to include the new 2000-tick closing target; this additional winding has not been retested.",
+  "grasp_windows_need_measurement": [],
+  "grasp_candidate_tick": {
+    "1": 736,
+    "2": 2104,
+    "3": 1748,
+    "4": 1746
+  },
+  "grasp_candidate_provisional": true,
+  "rotation_regrip_max_steps": 3,
+  "rotation_regrip_note": "A logical 90-degree cube turn uses two 50-degree wrist moves with one 100-tick finger regrip and 2-second midpoint pause. A logical 180-degree turn retains four 45-degree wrist moves with three regrips. Provisional lowest finger command ticks after three regrips: ID1=405, ID2=1700, ID3=1400, ID4=1400; these are not mechanically verified."
+}

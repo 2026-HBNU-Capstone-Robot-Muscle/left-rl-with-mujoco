@@ -1,21 +1,22 @@
 # 로봇 손 강화학습 정책 실기 실행
 
+파지·손목 회전 primitive 사용법은 [docs/primitive_README.md](../docs/primitive_README.md)를 참고하세요.
+
 학습된 PPO 모델을 DYNAMIXEL 모터 4개에 연결하는 코드입니다. 모터의 실제 위치·속도를 입력으로 정책을 추론하고, 출력된 목표 위치를 모터 명령으로 변환합니다.
 
 ## 파일 구조 트리
 
-```text
-sim2real/
-   ├─ README.md
-   ├─ finger_robot_ppo_best.zip # 학습된 PPO 정책 모델
-   ├─ apply_policy.py          # 초기 이동 및 실기 실행
-   ├─ bus.py                   # DYNAMIXEL 통신
-   ├─ core.py                  # 정책·모터 좌표 변환과 유효성 검사
-   ├─ run.py                   # 모델 로딩 및 규격·해시 확인
-   ├─ position_compensation.py # 실제 위치 오차 보정
-   └─ config.provisional.json  # 모터 매핑·위치 기준·변환 계수
-```
-
+    left-rl-with-mujoco/
+    ├─ model/
+    │  └─ finger_robot_ppo_best.zip  # PPO 정책 모델
+    └─ sim2real/
+       ├─ README.md
+       ├─ apply_policy.py            # 단독 정책 실행
+       ├─ bus.py                     # DYNAMIXEL 통신
+       ├─ core.py                    # 정책·모터 좌표 변환
+       ├─ run.py                     # 모델 로딩·해시 확인
+       ├─ position_compensation.py   # 실제 위치 오차 보정
+       └─ config.provisional.json    # 모터 매핑·위치 기준
 
 ## 제어 구조
 
@@ -70,11 +71,11 @@ python apply_policy.py --execute --seconds 10 --position-p 1000 --position-i 0 -
 - `config.provisional.json`의 위치 기준·모터 매핑이 실제 조립 상태와 일치해야 합니다.
 - 모델 교체 시 입출력 의미를 확인하고 설정의 SHA256을 갱신해야 합니다.
 
-전류 상한700mA, 위치 범위, 장치 온도 설정, 오래된 센서값 및 통신 오류에 대한 검사가 포함됩니다. 통신 단절 시 토크 OFF가 확인되지 않을 수 있습니다.
+전류 상한1000mA, 위치 범위, 장치 온도 설정, 오래된 센서값 및 통신 오류에 대한 검사가 포함됩니다. 통신 단절 시 토크 OFF가 확인되지 않을 수 있습니다.
 
 ## 결과 확인
 
-실행 로그는 `hardware_bridge/logs/`에 생성됩니다.
+실행 로그는 `sim2real/logs/`에 생성됩니다.
 
 | 로그 필드 | 의미 |
 | --- | --- |
@@ -92,5 +93,5 @@ python apply_policy.py --execute --seconds 10 --position-p 1000 --position-i 0 -
 - **목표 위치 추종 오차:** 정책 목표를 모터에 전달해도 실제 위치가 목표에 도달하지 않고 멈추는 구간이 있습니다. 추가 위치 보정으로 오차가 줄었지만 모든 모터에서 해소되지는 않았습니다.
 - **모터 위치와 손가락 굽힘의 차이:** 모터가 목표에 가까워져도 손가락이 충분히 굽지 않는 경우가 있습니다. 텐던 장력·미끄러짐·마찰 및 위치 변환 관계를 확인해야 하며, 원인은 아직 확정되지 않았습니다.
 - **시뮬과 실기의 구동 특성 차이:** 같은 목표라도 속도·힘·가속도·지연이 다릅니다. 현재 실기 게인과 추가 보정은 시뮬에서 학습한 구동 모델과 동일하게 검증된 설정이 아닙니다.
-- **관측값과 실행 주기의 차이:** 시뮬은 관절각 합으로 구성된 텐던 상태를 관측하지만 실기는 모터 위치·속도를 변환해 사용합니다. 이 대응 관계는 임시 보정이며, 로컬 시뮬의 정책 주기 2ms와 실기 명목 30ms도 다릅니다.
+- **관측값과 실행 주기의 차이:** 시뮬은 관절각 합으로 구성된 텐던 상태를 관측하지만 실기는 모터 위치·속도를 변환해 사용합니다. 이 대응 관계는 임시 보정이며, 설정상 학습·실기 정책 주기는 모두 명목 30ms이지만 실제 실행 간격은 통신 지연에 따라 달라질 수 있습니다.
 
