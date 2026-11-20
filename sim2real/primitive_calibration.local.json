@@ -4,6 +4,7 @@
   "quarter_ticks": 1024,
   "min_tick": 352,
   "max_tick": 3538,
+  "provisional_rotation_margin_tick": 30,
   "tolerance": 10,
   "grasp_ticks": {
     "1": [
@@ -11,7 +12,7 @@
       901
     ],
     "2": [
-      1997,
+      1797,
       2428
     ],
     "3": [
@@ -26,7 +27,7 @@
   "reference_tick": 2400,
   "reference_note": "Wrist reference 2400 tick, CW sign -1 and 1024 ticks per nominal 90 degrees. User confirmed physical clearance to 3538 ticks for a 100-degree counterclockwise wrist command; clockwise clearance to 352 ticks was previously confirmed.",
   "provisional_confirmed_for_test": true,
-  "grasp_note": "Provisional grasp window updated from the latest 30-second timeout: actual positions ID1=736, ID2=2104, ID3=1748, ID4=1746. ID3 upper edge is 1748+30=1778 because the previous upper edge 1739 rejected the stable feedback. ID3 still tracked 48 ticks above its 1700 target. Motor encoder positions alone do not verify cube contact or holding force. ID2 lower bound is 1997 to include the new 2000-tick closing target; this additional winding has not been retested.",
+  "grasp_note": "Provisional grasp window updated from the latest 30-second timeout: actual positions ID1=736, ID2=2104, ID3=1748, ID4=1746. ID3 upper edge is 1748+30=1778 because the previous upper edge 1739 rejected the stable feedback. ID3 still tracked 48 ticks above its 1700 target. Motor encoder positions alone do not verify cube contact or holding force. ID2 lower bound is 1997 to include the new 2000-tick closing target; this additional winding has not been retested. 2026-11-20: user requested ID2 closing target 2000 -> 1900 ticks due to weak grasp. Lower bound changed to 1897 (target minus existing 3-tick tolerance), not a new measured grasp/contact value; upper bound and historical candidate remain unchanged. Retest required. 2026-11-20 subsequent request: ID2 target 1850 and ID4 target 1750; provisional lower bounds 1847 and 1747, not measured new contact values. Upper bounds and historical candidates unchanged. Subsequent request: ID2 1850->1800, ID4 1750->1800; provisional target-3 lower bounds both 1797, not newly measured contact values. Subsequent request: ID4 target 1800->1725 (-75 ticks); provisional lower bound 1722 (target-3), not a measured new contact value. Upper bound and historical candidate unchanged. ID4 target adjusted 1725->1700; provisional lower bound 1697.",
   "grasp_windows_need_measurement": [],
   "grasp_candidate_tick": {
     "1": 736,
@@ -36,5 +37,5 @@
   },
   "grasp_candidate_provisional": true,
   "rotation_regrip_max_steps": 3,
-  "rotation_regrip_note": "A logical 90-degree cube turn uses two 50-degree wrist moves with one 100-tick finger regrip and 2-second midpoint pause. A logical 180-degree turn retains four 45-degree wrist moves with three regrips. Provisional lowest finger command ticks after three regrips: ID1=405, ID2=1700, ID3=1400, ID4=1400; these are not mechanically verified."
+  "rotation_regrip_note": "A logical 90-degree turn uses 50+45 degrees clockwise or 50+50 degrees counterclockwise. From 2400, their end targets are 1319 and 3538 respectively. A logical 180-degree turn requests 47.5, 47.5, 45 and 45 degrees of wrist travel (185 total). At reference 2400 its final target is 295. Provisional feedback limits are derived from the planned targets with the configured margin. Quarter turns ramp 100 ticks during the first segment and 50 ticks during the second using measured wrist progress. Half turns ramp 75 ticks using measured wrist progress in each of their first three segments. Only the half-turn halfway point (after the second segment) holds for 1 second. The final pull is 50 ticks with goal readback before completion. With three midpoint pulls and a final pull, the provisional lowest finger commands are ID1=430, ID2=1525, ID3=1425, ID4=1425. Mechanical clearance has not been verified for the added travel."
 }

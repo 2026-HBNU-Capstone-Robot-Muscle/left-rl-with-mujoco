@@ -84,11 +84,14 @@ class Worker:
                         begin_rotation=True
                 releasing=bool(j and j.name=='release_upper_layer')
                 now=time.monotonic()
-                if last is not None and now-last>.1: raise RuntimeError('control deadline exceeded')
+                if last is not None and now-last>.1:
+                    raise RuntimeError(f'control deadline exceeded: interval_ms={(now-last)*1000:.2f}, limit_ms=100')
                 dt=self.period if last is None else now-last; last=now
                 self._check(j)
                 grip_ok, open_ok, wrist_ok=self.hw.tick(releasing,dt)
-                if time.monotonic()-now>.1: raise RuntimeError('IO deadline exceeded')
+                tick_elapsed=time.monotonic()-now
+                if tick_elapsed>.1:
+                    raise RuntimeError(f'IO deadline exceeded: elapsed_ms={tick_elapsed*1000:.2f}, limit_ms=100')
                 if j and j.name=='grasp_upper_layer' and not grip_ok and hasattr(self.hw,'grasp_diagnostics') and now-last_grasp_report>=2.:
                     self.report('GRASP_WAIT: '+self.hw.grasp_diagnostics())
                     last_grasp_report=now
@@ -103,7 +106,8 @@ class Worker:
                     ok=open_ok if releasing else grip_ok and (j.name!='rotate_upper_layer' or wrist_ok)
                     stable=(now if stable is None else stable) if ok else None
                     if stable is not None and now-stable>=self.settle:
-                        if releasing: self.hw.close()
+                        if releasing:
+                            self.hw.finish_release(check=lambda: self._check(j))
                         self._check(j)
                         with self.lock:
                             self.state='OPEN' if releasing else 'HOLDING'
@@ -113,9 +117,41 @@ class Worker:
                             j.done.set()
                 self.stop.wait(max(0,self.period-(time.monotonic()-t)))
         except Exception as exc:
-            detail=str(exc)
+            with self.lock:
+                fault_state=self.state
+                self.state='FAULT'  # Reject new goals throughout recovery/cleanup.
+            detail=str(exc)+f'; primitive={j.name if j else "hold"}; execution_id={j.owner if j else self.owner}'
+            if hasattr(self.hw,'timing_diagnostics'):
+                try:
+                    detail+='; state='+fault_state+'; '+self.hw.timing_diagnostics()
+                except Exception:
+                    pass  # Diagnostics must never prevent the existing stop path.
+            if hasattr(self.hw,'fault_context'):
+                try:
+                    detail+='; '+self.hw.fault_context()
+                except Exception:
+                    pass  # Context formatting must not delay or block stop.
             if isinstance(exc,TimeoutError) and hasattr(self.hw,'grasp_diagnostics'):
                 detail+='; '+self.hw.grasp_diagnostics()
+            can_recover = getattr(self.hw, 'can_recover_after_fault', None)
+            recoverable = (
+                isinstance(exc, TimeoutError)
+                or str(exc).startswith(('IO deadline exceeded', 'control deadline exceeded',
+                                        'grasp telemetry left verified window'))
+                or (can_recover is not None and can_recover(exc))
+            )
+            recovery=getattr(self.hw,'recover_fingers_after_fault',None)
+            if (recoverable and recovery is not None and fault_state=='HOLDING'
+                    and not self.stop.is_set() and not (j and j.cancel.is_set())
+                    and not (j and j.name=='release_upper_layer')):
+                def recovery_check():
+                    if self.stop.is_set() or (j and j.cancel.is_set()):
+                        raise InterruptedError('recovery cancelled')
+                try:
+                    recovery(check=recovery_check)
+                    detail+='; finger_recovery=initial pose reached'
+                except Exception as recovery_error:
+                    detail+='; finger_recovery=skipped/failed: '+str(recovery_error)
             error=('CANCELLED' if isinstance(exc,InterruptedError) else
                    'TIMEOUT' if isinstance(exc,TimeoutError) else 'HARDWARE_FAULT',detail)
         else: error=('CANCELLED','controller shutdown')

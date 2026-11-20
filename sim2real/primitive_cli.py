@@ -37,8 +37,12 @@ class SimulatedHardware:
     def start(self, check): check(); print('SIM: start')
     def tick(self, releasing, dt): return True, True, True
     def rotate(self, turns): print(f'SIM: wrist quarter turns {turns}')
+    def finish_release(self, *, check):
+        check()
+        self.return_wrist_to_reference()
+        self.close()
     def close(self): print('SIM: close')
-    def return_wrist_to_reference(self): print('SIM: wrist to reference 2400; no motor output')
+    def return_wrist_to_reference(self, *, check=lambda: None): print('SIM: wrist to reference 2400; no motor output')
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

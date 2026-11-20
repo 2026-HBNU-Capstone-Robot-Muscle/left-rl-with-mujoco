@@ -7,7 +7,7 @@ from wrist_protocol import sts_read
 
 
 def diagnose(bus, count=30):
-    report={'initial':{},'counts':{'finger_ok':0,'wrist_ok':0},'errors':[]}
+    report={'initial':{},'counts':{'finger_ok':0,'wrist_ok':0},'errors':[], 'finger_read_retries':0}
     for i in range(1,5):
         try:report['initial'][f'id{i}_torque']=bus.read_int(i,64,1)
         except Exception as exc:report['errors'].append(f'ID{i} torque read: {exc}')
@@ -20,6 +20,7 @@ def diagnose(bus, count=30):
         try:
             rows=bus.read_diagnostic(combined=True)
             report['counts']['finger_ok']+=1
+            if getattr(bus,'last_diagnostic_retry',False) is True: report['finger_read_retries']+=1
             if cycle==0:report['initial']['finger_positions']={r['id']:r['position_tick'] for r in rows}
         except Exception as exc:report['errors'].append(f'cycle {cycle} finger read: {exc}')
         try:

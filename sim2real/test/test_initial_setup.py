@@ -102,7 +102,7 @@ class InitialSetupTests(unittest.TestCase):
     def test_after_initialization_position_limit_still_applies(self):
         guard=self.run_setup()
         self.bus.positions[4]=95  # More than three ticks below close.
-        with self.assertRaisesRegex(Fault,r'ID4: position limit: actual=95, allowed=97\.\.2003'):
+        with self.assertRaisesRegex(Fault,r'ID4: position limit: actual=95, allowed=97\.\.2033'):
             guard.check(self.bus.read_diagnostic())
 
     def test_initialization_keeps_current_and_temperature_checks(self):

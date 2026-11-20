@@ -17,6 +17,8 @@ PERIOD=.1
 SENSOR_PERIOD=.02
 AGE=.1
 INITIAL_TOLERANCE_TICK=10
+# User-requested +30 ticks on measured upper-position tolerance (previously 3).
+POSITION_UPPER_MARGIN_TICK=33
 # Requested operating limit; EEPROM is restored after confirmed torque OFF.
 CURRENT_LIMIT_MA=1000
 CURRENT_TRANSIENT_MARGIN_MA=50
@@ -53,8 +55,8 @@ class Guard:
                 position=r['position_tick']
                 if self.initializing:
                     if not 0<=position<=4095: raise Fault(f'ID{i}: invalid single-turn position')
-                elif not lo-3<=position<=self.upper[i]+3:
-                    raise Fault(f'ID{i}: position limit: actual={position}, allowed={lo-3}..{self.upper[i]+3}')
+                elif not lo-3<=position<=self.upper[i]+POSITION_UPPER_MARGIN_TICK:
+                    raise Fault(f'ID{i}: position limit: actual={position}, allowed={lo-3}..{self.upper[i]+POSITION_UPPER_MARGIN_TICK}')
                 current=abs(r['current_ma'])
                 limit=self.current_stop[i]
                 if self.initializing and current>limit:

@@ -220,3 +220,6 @@ __marimo__/
 # 강화학습 결과
 run/
 runs/
+
+# Local ROS session logs and configuration snapshots
+/logs/primitive/

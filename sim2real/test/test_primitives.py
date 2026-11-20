@@ -20,6 +20,9 @@ class Fake:
         self.calls.append((threading.get_ident(),release))
         return self.grip,self.open,self.at
     def rotate(self,n): self.turns.append(n)
+    def finish_release(self, *, check):
+        check()
+        self.close()
     def close(self): self.stopped=True
 
 
@@ -88,6 +91,92 @@ class Tests(unittest.TestCase):
         with self.assertRaises(Rejected): self.w.submit('release_upper_layer',0,'other',1)
 
 
+    def test_release_waits_for_adapters_full_finish(self):
+        self.grasp()
+        entered=threading.Event(); finish=threading.Event()
+        def home(*,check):
+            self.assertFalse(self.f.stopped)
+            entered.set()
+            finish.wait(1)
+            check()
+            self.f.close()
+        self.f.finish_release=home
+        job=self.send('release')
+        try:
+            self.assertTrue(entered.wait(1))
+            self.assertFalse(job.done.is_set())
+        finally:
+            finish.set()
+        self.assertTrue(self.end(job)[0])
+        self.assertEqual(self.w.state,'OPEN')
+
+    def test_fault_does_not_attempt_home(self):
+        self.f.finish_release=Mock()
+        self.f.tick=Mock(side_effect=RuntimeError('communication lost'))
+        self.assertEqual(self.end(self.send('grasp'))[1],'HARDWARE_FAULT')
+        self.f.finish_release.assert_not_called()
+        self.assertTrue(self.f.stopped)
+
+    def test_home_failure_does_not_report_success(self):
+        self.grasp()
+        self.f.finish_release=Mock(side_effect=RuntimeError('home failed'))
+        result=self.end(self.send('release'))
+        self.assertFalse(result[0])
+        self.assertIn('home failed',result[2])
+        self.assertEqual(self.w.state,'FAULT')
+
+
+    def test_recovery_latches_fault_before_return_and_always_stops(self):
+        self.grasp()
+        trigger=threading.Event(); entered=threading.Event(); finish=threading.Event()
+        old_tick=self.f.tick
+        def tick(*args):
+            if trigger.is_set(): raise RuntimeError('IO deadline exceeded: test')
+            return old_tick(*args)
+        def recovery(*,check):
+            entered.set(); finish.wait(1); check()
+        self.f.tick=tick;self.f.recover_fingers_after_fault=recovery
+        trigger.set()
+        try:
+            self.assertTrue(entered.wait(1))
+            self.assertEqual(self.w.state,'FAULT')
+            with self.assertRaises(Rejected): self.send('rotate',1)
+        finally:
+            finish.set()
+        self.w.thread.join(2)
+        self.assertFalse(self.w.thread.is_alive())
+        self.assertTrue(self.f.stopped)
+
+    def test_only_empty_header_or_target_range_can_try_recovery(self):
+        from bus import BusError
+        from primitive_hardware import WristTargetOutOfRange
+
+        cases = (
+            (BusError('XL330 ID 4: 응답 헤더를 찾지 못했습니다; received bytes=<none>'), True),
+            (WristTargetOutOfRange('target=295'), True),
+            (BusError('XL330 ID 4: 응답 헤더를 찾지 못했습니다; received bytes=ff'), False),
+            (BusError('XL330 CRC mismatch; received bytes=ff ff'), False),
+        )
+        for fault, expected in cases:
+            with self.subTest(fault=fault):
+                hardware = Fake()
+                hardware.can_recover_after_fault = Hardware.can_recover_after_fault
+                hardware.recover_fingers_after_fault = Mock()
+                errors = []
+                worker = Worker(hardware, period=.005, settle=.015, report=errors.append)
+                try:
+                    job = worker.submit('grasp_upper_layer', 0, 'session', 1)
+                    self.assertTrue(job.done.wait(2) and job.result[0])
+                    hardware.tick = Mock(side_effect=fault)
+                    worker.thread.join(2)
+                    self.assertFalse(worker.thread.is_alive())
+                    self.assertEqual(hardware.recover_fingers_after_fault.call_count, int(expected))
+                    self.assertTrue(hardware.stopped)
+                    self.assertTrue(errors[0].startswith('HARDWARE_FAULT'))
+                finally:
+                    worker.close()
+
+
 class AdapterTests(unittest.TestCase):
     def test_real_model_and_feedback_without_port(self):
         root=Path(__file__).resolve().parent.parent
@@ -128,6 +217,46 @@ class AdapterTests(unittest.TestCase):
                 Hardware(path)
             h=Hardware(path,allow_provisional=True)
             self.assertIsNone(h.bus)
+
+    def test_provisional_wrist_bounds_follow_planned_targets_and_limit_motion(self):
+        root = Path(__file__).resolve().parent.parent
+        cal = json.loads((root/'primitive_calibration.local.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as directory, patch('primitive_hardware.Policy'), patch('primitive_hardware.Bus') as bus:
+            path = Path(directory)/'cal.json'
+            path.write_text(json.dumps(cal), encoding='utf-8')
+            hardware = Hardware(path, allow_provisional=True)
+            self.assertEqual(hardware.wrist_goal_range, (295, 3538))
+            self.assertEqual((hardware.c['min_tick'], hardware.c['max_tick']), (265, 3568))
+            hardware._read = Mock(return_value=2400)
+            hardware._goal = Mock()
+            hardware.wrist_armed = True
+            hardware.rotate(2)
+            self.assertEqual([hardware.wtarget]+hardware.rotation_remaining, [1860, 1319, 807, 295])
+
+            # A 20-tick shift puts the same plan inside the feedback margin,
+            # but outside its command range.
+            hardware._goal.reset_mock()
+            hardware._read.return_value = 2380
+            with self.assertRaisesRegex(RuntimeError, 'target=275, allowed=295'):
+                hardware.rotate(2)
+            hardware._goal.assert_not_called()
+            hardware._read.return_value = 265
+            self.assertEqual(hardware._pos(), 265)
+            hardware._read.return_value = 264
+            with self.assertRaisesRegex(RuntimeError, 'outside calibrated range'):
+                hardware._pos()
+
+            cal['quarter_ticks'] = 1000
+            path.write_text(json.dumps(cal), encoding='utf-8')
+            recalculated = Hardware(path, allow_provisional=True)
+            self.assertEqual(recalculated.wrist_goal_range, (344, 3511))
+            self.assertEqual((recalculated.c['min_tick'], recalculated.c['max_tick']), (314, 3541))
+
+            cal['quarter_ticks'] = 1200
+            path.write_text(json.dumps(cal), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'single-turn encoder range'):
+                Hardware(path, allow_provisional=True)
+            bus.assert_not_called()
 
     def test_watchdog_reset_requires_off_and_rechecks(self):
         inventory=[dict(id=i,torque=0,watchdog=255,hardware_error=0) for i in range(1,5)]
@@ -238,15 +367,17 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception,r'actual=2403 tick, allowed=352\.\.2400'):
             h._pos()
 
-    def test_user_reference_allows_both_quarters_and_clockwise_half(self):
+    def test_user_reference_allows_both_quarters_but_blocks_extended_half(self):
         h=Hardware.__new__(Hardware);h.bus=Mock();h.wrist_armed=True
         h.c=dict(min_tick=352,max_tick=3538,cw_sign=-1,quarter_ticks=1024,rotation_regrip_max_steps=3)
         h._pos=lambda:2400
         with patch.object(h,'_goal') as write:
-            h.rotate(1);write.assert_called_with(1831)
-            h.rotate(-1);write.assert_called_with(2969)
-            h.rotate(2);write.assert_called_with(1888)
-            self.assertEqual(h.rotation_remaining[-1],352)
+            h.rotate(1);write.assert_called_with(1831, speed=550)
+            h.rotate(-1);write.assert_called_with(2969, speed=550)
+            write.reset_mock()
+            with self.assertRaisesRegex(RuntimeError,r'target=295, allowed=352\.\.3538'):
+                h.rotate(2)
+            write.assert_not_called()
 
     def test_1124_turn_with_existing_limits(self):
         calibration=dict(min_tick=352,max_tick=3424,cw_sign=-1,quarter_ticks=1124,reference_tick=2400,tolerance=10,rotation_regrip_max_steps=3)
@@ -254,11 +385,11 @@ class AdapterTests(unittest.TestCase):
         h._pos=lambda:2400
         with patch.object(h,'_goal') as goal:
             h.rotate(1)
-            goal.assert_called_once_with(1776)
+            goal.assert_called_once_with(1776, speed=550)
             goal.reset_mock()
             with self.assertRaisesRegex(Exception,'target=3649'):
                 h.rotate(-1)
-            with self.assertRaisesRegex(Exception,'target=152'):
+            with self.assertRaisesRegex(Exception,'target=90'):
                 h.rotate(2)
             goal.assert_not_called()
 
@@ -268,8 +399,8 @@ class AdapterTests(unittest.TestCase):
         h._pos=lambda:2400
         with patch.object(h,'_goal') as goal:
             h.rotate(2)
-            goal.assert_called_once_with(1838)
-            self.assertEqual(h.rotation_remaining[-1],152)
+            goal.assert_called_once_with(1807, speed=550)
+            self.assertEqual(h.rotation_remaining[-1],90)
 
     def test_close_turns_off_wrist_even_when_not_armed_by_program(self):
         h=Hardware.__new__(Hardware);h.bus=Mock();h.bus.armed_ids=[];h.bus.verify_torque_off.return_value=[]
@@ -350,20 +481,20 @@ class AdapterTests(unittest.TestCase):
 
     def test_180_from_near_reference_uses_reference(self):
         h=Hardware.__new__(Hardware);h.bus=Mock();h.wrist_armed=True
-        h.c=dict(min_tick=352,max_tick=3424,cw_sign=-1,quarter_ticks=1024,reference_tick=2400,tolerance=10,rotation_regrip_max_steps=3)
+        h.c=dict(min_tick=295,max_tick=3424,cw_sign=-1,quarter_ticks=1024,reference_tick=2400,tolerance=10,rotation_regrip_max_steps=3)
         for actual in (2390,2399,2400,2409,2410):
             h._pos=lambda:actual
             with patch.object(h,'_goal') as goal:
                 h.rotate(2)
-                goal.assert_called_once_with(1888)
-                self.assertEqual(h.rotation_remaining[-1],352)
+                goal.assert_called_once_with(1860, speed=550)
+                self.assertEqual(h.rotation_remaining[-1],295)
 
     def test_180_after_quarter_turn_still_checks_actual_range(self):
         h=Hardware.__new__(Hardware);h.bus=Mock();h.wrist_armed=True
         h.c=dict(min_tick=352,max_tick=3424,cw_sign=-1,quarter_ticks=1024,reference_tick=2400,tolerance=10,rotation_regrip_max_steps=3)
         h._pos=lambda:1376
         with patch.object(h,'_goal') as goal:
-            with self.assertRaisesRegex(Exception,'actual=1376, base=1376, target=-672'):
+            with self.assertRaisesRegex(Exception,'actual=1376, base=1376, target=-729'):
                 h.rotate(2)
             goal.assert_not_called()
 
@@ -400,11 +531,11 @@ class AdapterTests(unittest.TestCase):
         h._pos=lambda:2400
         with patch('primitive_hardware.sts_write_position') as write:
             for turns in [1,-1,2]:
-                first=round(1024*5/9) if abs(turns)==1 else 1024//2
+                first=round(1024*(47.5 if turns==2 else 50)/90)
                 goal=2400-(1 if turns>0 else -1)*first;h._read=lambda a,n:goal
                 h.rotate(turns)
-                write.assert_called_with(h.bus.port,10,goal,600,10)
-                travel=round(1024*10/9) if abs(turns)==1 else 2*1024
+                write.assert_called_with(h.bus.port,10,goal,550,10)
+                travel=round(1024*{1:95,-1:100,2:185}[turns]/90)
                 self.assertEqual(h.rotation_remaining[-1],2400-(1 if turns>0 else -1)*travel)
             h._pos=lambda:100
             with self.assertRaisesRegex(Exception,'outside range'): h.rotate(1)

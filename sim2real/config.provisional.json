@@ -97,9 +97,9 @@
         "evidence": null,
         "zero_tick": 2749,
         "tendon_at_zero": -0.0441,
-        "tendon_per_tick": -0.0027962616822429904,
+        "tendon_per_tick": -0.0022069546891464696,
         "status": "user_approved_provisional",
-        "mapping_note": "User-reported open reference 2749 and provisional closing target 2000 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
+        "mapping_note": "User-reported open reference 2749 and provisional closing target 1800 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
       },
       "limits": {
         "verified": false,
@@ -113,10 +113,10 @@
         "profile_velocity_raw": null
       },
       "initial_position_tick": 2749,
-      "provisional_close_tick": 2000,
+      "provisional_close_tick": 1800,
       "open3_reference_tick": 2897,
       "close3_reference_tick": 2365,
-      "command_floor_tick": 2000
+      "command_floor_tick": 1800
     },
     {
       "id": 3,
@@ -156,6 +156,6 @@
   "initial_pose_file": "initial_pose.open3.json",
   "initial_pose_note": "User-reported new initial ticks ID1=1299, ID2=2749, ID3=2378, ID4=2292. Historical open3 reference fields are retained as original pose records; these new initial positions and endpoint interpolation are provisional.",
   "mapping_status": "user_approved_provisional",
-  "provisional_note": "User-reported provisional initial ticks ID1=1299, ID2=2749, ID3=2378, ID4=2292; closing targets ID1=705, ID2=2000, ID3=1700, ID4=1700. These are not verified mechanical limits.",
+  "provisional_note": "User-reported provisional initial ticks ID1=1299, ID2=2749, ID3=2378, ID4=2292; closing targets ID1=705, ID2=1800, ID3=1700, ID4=1700. These are not verified mechanical limits.",
   "deployment_status": "user_approved_provisional_v5_mapping"
 }
