@@ -69,9 +69,34 @@ def find_header(port: serial.Serial, header: bytes) -> None:
     raise BusError("응답 헤더를 찾지 못했습니다")
 
 
+class _DXLReadTrace:
+    """Capture a bounded amount of input to diagnose failed status packets."""
+    def __init__(self, port):
+        self.port=port
+        self.timeout=port.timeout
+        self.data=bytearray()
+    def read(self,count):
+        data=self.port.read(count)
+        self.data.extend(data)
+        if len(self.data)>128:del self.data[:-128]
+        return data
+
+
 def dxl_status(port: serial.Serial, expected_id: int) -> bytes:
+    """Validate an XL330 status; include received bytes on failure."""
+    trace=_DXLReadTrace(port)
+    try:
+        return _dxl_status_inner(trace,expected_id)
+    except BusError as exc:
+        raise BusError(f'{exc}; received bytes={trace.data.hex(" ") or "<none>"}') from exc
+
+
+def _dxl_status_inner(port: serial.Serial, expected_id: int) -> bytes:
     """XL330 응답의 ID, CRC, 장치 오류를 검사하고 데이터만 반환한다."""
-    find_header(port, b"\xFF\xFF\xFD\x00")
+    try:
+        find_header(port, b"\xFF\xFF\xFD\x00")
+    except BusError as exc:
+        raise BusError(f"XL330 ID {expected_id}: {exc}") from exc
     prefix = read_exact(port, 3)
     device_id = prefix[0]
     length = prefix[1] | prefix[2] << 8
@@ -210,14 +235,55 @@ class Bus:
                 raise Fault('State expired during hardware error read')
             self.write_checked(i, 116, positions[i], 4)
 
-    def stop(self):
-        errors = []
-        # Torque-off is a selected, verified stop strategy, not a universal safe pose.
+    def send_torque_off(self):
+        """Send one addressed Sync Write to release all armed XL motors.
+
+        This is not an acknowledgement: a separate fresh read must verify OFF.
+        """
+        ids=list(self.armed_ids)
+        if not ids: return
+        if len(set(ids))!=len(ids) or not set(ids)<={1,2,3,4}:
+            raise Fault('Invalid armed IDs for stop')
+        params=struct.pack('<HH',64,1)+b''.join(bytes([i,0]) for i in ids)
+        packet=dxl_packet(254,0x83,params)
+        if self.port.write(packet)!=len(packet): raise Fault('Incomplete torque-off Sync Write')
+        self.port.flush()
+
+    def wait_for_quiet_input(self,quiet_s=.05,max_s=.25):
+        """Discard pending replies until a quiet interval, bounded by max_s.
+
+        Used only after stop commands: delayed old status packets must not be
+        mistaken for verification of the new torque-OFF requests.
+        """
+        old_timeout=self.port.timeout
+        began=time.monotonic(); last_data=began
+        try:
+            self.port.timeout=.01
+            while time.monotonic()-began<max_s:
+                data=self.port.read(256)
+                now=time.monotonic()
+                if data: last_data=now
+                elif now-last_data>=quiet_s: return
+            raise BusError('Input did not become quiet before stop verification')
+        finally:
+            self.port.timeout=old_timeout
+
+    def verify_torque_off(self):
+        errors=[]
         for i in self.armed_ids:
             try:
-                self.write_checked(i, 64, 0, 1)
+                if self.read_int(i,64,1)!=0: raise Fault('torque remains enabled')
             except Exception as exc:
                 errors.append(f'ID {i}: torque-off UNCONFIRMED: {exc}')
+        return errors
+
+    def stop(self):
+        errors=[]
+        try:self.send_torque_off()
+        except Exception as exc:errors.append(f'finger stop write UNCONFIRMED: {exc}')
+        try:self.wait_for_quiet_input()
+        except Exception as exc:errors.append(f'finger stop input UNCONFIRMED: {exc}')
+        errors.extend(self.verify_torque_off())
         return errors
 
     def close(self):

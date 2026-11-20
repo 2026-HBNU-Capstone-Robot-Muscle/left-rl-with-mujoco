@@ -1,0 +1,9 @@
+{
+  "source": "User-reported current initial positions on 2026-11-16; not remeasured by this program. File name retained for configuration compatibility.",
+  "positions_tick": {
+    "1": 1299,
+    "2": 2749,
+    "3": 2378,
+    "4": 2292
+  }
+}

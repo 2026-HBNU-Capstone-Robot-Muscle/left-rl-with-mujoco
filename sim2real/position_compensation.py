@@ -6,7 +6,12 @@ class PositionCompensation:
     def __init__(self,cfg,extra):
         if type(extra) is not int or not 0<=extra<=200:raise Fault('Compensation must be 0..200 tick')
         self.extra=extra
-        self.minimum={m['id']:max(0,m['provisional_close_tick']-extra) for m in cfg['motors']}
+        self.minimum={}
+        for m in cfg['motors']:
+            floor=m.get('command_floor_tick',0)
+            if type(floor) is not int or not 0<=floor<=m['provisional_close_tick']:
+                raise Fault(f"ID{m['id']}: invalid command floor")
+            self.minimum[m['id']]=max(floor,m['provisional_close_tick']-extra)
         self.offset={i:0. for i in self.minimum}
         self.previous_goal={}
     def command(self,goals,rows,now,dt):

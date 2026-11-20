@@ -93,7 +93,8 @@ def action_targets(cfg, action):
     if len(action) != 4:
         raise Fault('Action must contain 4 values')
     targets = {}
-    for m, a, (lo, hi) in zip(cfg['motors'], action, CTRL):
+    ranges = ((0., 2.0943951023931953),)*4 if cfg.get('policy', {}).get('format') == 'v5_sb3_converted' else CTRL
+    for m, a, (lo, hi) in zip(cfg['motors'], action, ranges):
         a = finite(a)
         if abs(a) > 1.000001:
             raise Fault('Policy output outside normalized action range')

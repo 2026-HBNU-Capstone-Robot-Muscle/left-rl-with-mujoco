@@ -29,11 +29,11 @@
       "calibration": {
         "verified": false,
         "evidence": null,
-        "zero_tick": 2670,
+        "zero_tick": 2292,
         "tendon_at_zero": -0.0873,
-        "tendon_per_tick": -0.005275566750629722,
+        "tendon_per_tick": -0.0035378378378378376,
         "status": "user_approved_provisional",
-        "mapping_note": "User selected open3/close3 as provisional model ctrlrange endpoints; finger-specific offset applied."
+        "mapping_note": "User-reported open reference 2292 and provisional closing target 1700 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
       },
       "limits": {
         "verified": false,
@@ -46,10 +46,11 @@
         "tracking_error_tick": null,
         "profile_velocity_raw": null
       },
-      "initial_position_tick": 2670,
-      "provisional_close_tick": 2273,
+      "initial_position_tick": 2292,
+      "provisional_close_tick": 1700,
       "open3_reference_tick": 2670,
-      "close3_reference_tick": 2273
+      "close3_reference_tick": 2273,
+      "command_floor_tick": 1700
     },
     {
       "id": 1,
@@ -61,11 +62,11 @@
       "calibration": {
         "verified": false,
         "evidence": null,
-        "zero_tick": 778,
+        "zero_tick": 1299,
         "tendon_at_zero": 0.0,
-        "tendon_per_tick": -0.004770842824601366,
+        "tendon_per_tick": -0.0035259259259259254,
         "status": "user_approved_provisional",
-        "mapping_note": "User selected open3/close3 as provisional model ctrlrange endpoints; finger-specific offset applied."
+        "mapping_note": "User-reported open reference 1299 and provisional closing target 705 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
       },
       "limits": {
         "verified": false,
@@ -78,10 +79,11 @@
         "tracking_error_tick": null,
         "profile_velocity_raw": null
       },
-      "initial_position_tick": 778,
-      "provisional_close_tick": 339,
+      "initial_position_tick": 1299,
+      "provisional_close_tick": 705,
       "open3_reference_tick": 778,
-      "close3_reference_tick": 339
+      "close3_reference_tick": 339,
+      "command_floor_tick": 705
     },
     {
       "id": 2,
@@ -93,11 +95,11 @@
       "calibration": {
         "verified": false,
         "evidence": null,
-        "zero_tick": 2897,
+        "zero_tick": 2749,
         "tendon_at_zero": -0.0441,
-        "tendon_per_tick": -0.003936842105263158,
+        "tendon_per_tick": -0.0022069546891464696,
         "status": "user_approved_provisional",
-        "mapping_note": "User selected open3/close3 as provisional model ctrlrange endpoints; finger-specific offset applied."
+        "mapping_note": "User-reported open reference 2749 and provisional closing target 1800 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
       },
       "limits": {
         "verified": false,
@@ -110,10 +112,11 @@
         "tracking_error_tick": null,
         "profile_velocity_raw": null
       },
-      "initial_position_tick": 2897,
-      "provisional_close_tick": 2365,
+      "initial_position_tick": 2749,
+      "provisional_close_tick": 1800,
       "open3_reference_tick": 2897,
-      "close3_reference_tick": 2365
+      "close3_reference_tick": 2365,
+      "command_floor_tick": 1800
     },
     {
       "id": 3,
@@ -125,11 +128,11 @@
       "calibration": {
         "verified": false,
         "evidence": null,
-        "zero_tick": 2669,
+        "zero_tick": 2378,
         "tendon_at_zero": 0.0,
-        "tendon_per_tick": -0.0043724425887265135,
+        "tendon_per_tick": -0.0030890855457227136,
         "status": "user_approved_provisional",
-        "mapping_note": "User selected open3/close3 as provisional model ctrlrange endpoints; finger-specific offset applied."
+        "mapping_note": "User-reported open reference 2378 and provisional closing target 1700 linearly map the current policy endpoints; mechanical limits and finger posture remain unverified."
       },
       "limits": {
         "verified": false,
@@ -142,16 +145,17 @@
         "tracking_error_tick": null,
         "profile_velocity_raw": null
       },
-      "initial_position_tick": 2669,
-      "provisional_close_tick": 2190,
+      "initial_position_tick": 2378,
+      "provisional_close_tick": 1700,
       "open3_reference_tick": 2669,
-      "close3_reference_tick": 2190
+      "close3_reference_tick": 2190,
+      "command_floor_tick": 1700
     }
   ],
   "read_method": "sync",
   "initial_pose_file": "initial_pose.open3.json",
-  "initial_pose_note": "open3 maps to finger_robot per-finger lower ctrlrange; close3 maps to upper ctrlrange. Provisional endpoint interpolation.",
+  "initial_pose_note": "User-reported new initial ticks ID1=1299, ID2=2749, ID3=2378, ID4=2292. Historical open3 reference fields are retained as original pose records; these new initial positions and endpoint interpolation are provisional.",
   "mapping_status": "user_approved_provisional",
-  "provisional_note": "User selected open3/close3 endpoint interpolation; not verified mechanical limits. Existing extra position compensation remains separate.",
+  "provisional_note": "User-reported provisional initial ticks ID1=1299, ID2=2749, ID3=2378, ID4=2292; closing targets ID1=705, ID2=1800, ID3=1700, ID4=1700. These are not verified mechanical limits.",
   "deployment_status": "user_approved_provisional_v5_mapping"
 }

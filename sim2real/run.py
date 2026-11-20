@@ -30,7 +30,11 @@ class Policy:
         from stable_baselines3 import PPO
         import numpy as np
         self.np = np
-        self.model = PPO.load(str(path), device='cpu')
+        if cfg['policy'].get('format') == 'v5_sb3_converted':
+            from v5_policy import load_v5
+            self.model, _ = load_v5(path)
+        else:
+            self.model = PPO.load(str(path), device='cpu')
         if self.model.observation_space.shape != (8,) or self.model.action_space.shape != (4,):
             raise Fault('Expected observation(8), action(4)')
         if not (np.all(self.model.action_space.low == -1) and np.all(self.model.action_space.high == 1)):
